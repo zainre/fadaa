@@ -5,12 +5,21 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // ملاحظة: تأكد من إضافة ملف google-services.json لاحقاً ليعمل الفايربيس
+  
+  // مفاتيح مشروعك الحقيقية لربط الفايربيس بنجاح
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: "AIzaSyC1Ao53gJgrlw3DwoRoq0xK9Wq1-dPB8uc",
+        appId: "1:611756083257:android:9f48cc6b3aad31d29865e8",
+        messagingSenderId: "611756083257",
+        projectId: "gen-lang-client-0777727516",
+      ),
+    );
   } catch (e) {
-    print("Firebase not initialized: $e");
+    print("خطأ في فايربيس: $e");
   }
+  
   runApp(const FadaaApp());
 }
 
@@ -24,8 +33,8 @@ class FadaaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        primaryColor: Colors.blueAccent,
         scaffoldBackgroundColor: Colors.black,
+        primaryColor: const Color(0xFF0095F6),
       ),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -47,23 +56,25 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  bool isLoading = false;
 
-  // دالة إنشاء حساب جديد
   void signUp() async {
+    setState(() => isLoading = true);
     try {
       await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("تم إنشاء الحساب بنجاح!")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("تم إنشاء الحساب بنجاح! 🎉"), backgroundColor: Colors.green));
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("خطأ: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("حدث خطأ: $e"), backgroundColor: Colors.red));
     }
+    setState(() => isLoading = false);
   }
 
-  // دالة تسجيل الدخول
   void signIn() async {
+    setState(() => isLoading = true);
     try {
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailController.text.trim(),
@@ -71,44 +82,83 @@ class _AuthScreenState extends State<AuthScreen> {
       );
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("خطأ: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("تأكد من البريد وكلمة المرور!"), backgroundColor: Colors.red));
     }
+    setState(() => isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text("تسجيل الدخول", style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 40),
-              TextField(
-                controller: emailController,
-                decoration: InputDecoration(labelText: "البريد الإلكتروني", border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
-              ),
-              const SizedBox(height: 15),
-              TextField(
-                controller: passwordController,
-                obscureText: true,
-                decoration: InputDecoration(labelText: "كلمة المرور", border: OutlineInputBorder(borderRadius: BorderRadius.circular(10))),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: signIn,
-                style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-                child: const Text("تسجيل الدخول"),
-              ),
-              const SizedBox(height: 10),
-              OutlinedButton(
-                onPressed: signUp,
-                style: OutlinedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-                child: const Text("إنشاء حساب جديد"),
-              ),
-            ],
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 32.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.blur_on, size: 100, color: Colors.white),
+                const SizedBox(height: 20),
+                const Text("فَـضـاء", style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, fontFamily: 'sans-serif')),
+                const SizedBox(height: 50),
+                
+                TextField(
+                  controller: emailController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: "البريد الإلكتروني",
+                    hintStyle: const TextStyle(color: Colors.grey),
+                    filled: true,
+                    fillColor: const Color(0xFF121212),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: "كلمة المرور",
+                    hintStyle: const TextStyle(color: Colors.grey),
+                    filled: true,
+                    fillColor: const Color(0xFF121212),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  ),
+                ),
+                const SizedBox(height: 30),
+                
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: isLoading ? null : signIn,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0095F6),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: isLoading 
+                        ? const CircularProgressIndicator(color: Colors.white) 
+                        : const Text("تسجيل الدخول", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("ليس لديك حساب؟ ", style: TextStyle(color: Colors.grey)),
+                    GestureDetector(
+                      onTap: isLoading ? null : signUp,
+                      child: const Text("إنشاء حساب جديد", style: TextStyle(color: Color(0xFF0095F6), fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -125,36 +175,32 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   static const List<Widget> _widgetOptions = <Widget>[
-    Center(child: Text('الرئيسية (المنشورات)', style: TextStyle(fontSize: 24))),
+    Center(child: Text('الرئيسية', style: TextStyle(fontSize: 24))),
     Center(child: Text('ريلز', style: TextStyle(fontSize: 24))),
     Center(child: Text('المحادثات', style: TextStyle(fontSize: 24))),
-    Center(child: Text('الملف الشخصي', style: TextStyle(fontSize: 24))),
+    Center(child: Text('حسابي', style: TextStyle(fontSize: 24))),
   ];
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("فَضاء"), backgroundColor: Colors.black),
+      appBar: AppBar(title: const Text("فَضاء", style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.black, centerTitle: true),
       body: _widgetOptions.elementAt(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'الرئيسية'),
-          BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'ريلز'),
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'المحادثات'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'حسابي'),
+          BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.video_library), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: ''),
         ],
         currentIndex: _selectedIndex,
-        selectedItemColor: Colors.blueAccent,
+        selectedItemColor: Colors.white,
         unselectedItemColor: Colors.grey,
         backgroundColor: Colors.black,
         type: BottomNavigationBarType.fixed,
-        onTap: _onItemTapped,
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        onTap: (index) => setState(() => _selectedIndex = index),
       ),
     );
   }
