@@ -53,10 +53,37 @@ class AuthScreen extends StatefulWidget {
   _AuthScreenState createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+// أضفنا SingleTickerProviderStateMixin لدعم الأنميشن
+class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateMixin {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
+  
+  // متغيرات الأنميشن
+  late AnimationController _animationController;
+  late Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    // إعداد الأنميشن ليشتغل بشكل مستمر (نبض)
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2), // سرعة النبضة
+    )..repeat(reverse: true);
+
+    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.05).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose(); // إغلاق الأنميشن عند الخروج من الشاشة
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
+  }
 
   void signUp() async {
     setState(() => isLoading = true);
@@ -65,12 +92,14 @@ class _AuthScreenState extends State<AuthScreen> {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("تم إنشاء الحساب بنجاح! 🎉"), backgroundColor: Colors.green));
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("حدث خطأ: $e"), backgroundColor: Colors.red));
     }
-    setState(() => isLoading = false);
+    if (mounted) setState(() => isLoading = false);
   }
 
   void signIn() async {
@@ -80,11 +109,13 @@ class _AuthScreenState extends State<AuthScreen> {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
+      if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("تأكد من البريد وكلمة المرور!"), backgroundColor: Colors.red));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("تأكد من البريد وكلمة المرور!"), backgroundColor: Colors.red));
     }
-    setState(() => isLoading = false);
+    if (mounted) setState(() => isLoading = false);
   }
 
   @override
@@ -97,9 +128,17 @@ class _AuthScreenState extends State<AuthScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.blur_on, size: 100, color: Colors.white),
-                const SizedBox(height: 20),
-                const Text("فَـضـاء", style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, fontFamily: 'sans-serif')),
+                // تطبيق الأنميشن على اللوكو والكلمة
+                ScaleTransition(
+                  scale: _scaleAnimation,
+                  child: Column(
+                    children: const [
+                      Icon(Icons.blur_on, size: 100, color: Colors.white),
+                      SizedBox(height: 20),
+                      Text("فَـضـاء", style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, fontFamily: 'sans-serif')),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: 50),
                 
                 TextField(
