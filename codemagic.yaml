@@ -4,6 +4,10 @@ workflows:
     environment:
       flutter: default
     scripts:
+      - name: Fix Gradle (Recreate Android folder)
+        script: |
+          rm -rf android
+          flutter create .
       - name: Get packages
         script: flutter pub get
       - name: Build APK
