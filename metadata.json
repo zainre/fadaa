@@ -1,0 +1,6 @@
+{
+  "name": "Flutter Social App Setup",
+  "description": "A Flutter project setup with Firebase, Dark theme, and Instagram-like UI. Ready for export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@300;400;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #090909;
+  --color-surface: #121212;
+  --color-accent: #0095f6;
+  --color-text-main: #ffffff;
+  --color-text-dim: #8e8e8e;
+  --color-border-main: #262626;
+  
+  --font-sans: 'Noto Sans Arabic', ui-sans-serif, system-ui, sans-serif;
+}
