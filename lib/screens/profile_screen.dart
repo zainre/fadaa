@@ -7,6 +7,8 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
 import 'dart:math' as math;
 
+import 'api_keys.dart'; // استدعاء ملف المفاتيح المركزي
+
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -22,12 +24,6 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   
   bool _isGeneratingBio = false;
   bool _isUploadingImage = false;
-
-  final String _apiKey = 'AIzaSyD86oeJ6ZNQHkjzIyYAaOZ1oiUZR4G-h-Q';
-
-  // مفاتيح Supabase
-  final String _supabaseUrl = 'https://qkphtbweyeubtyxudscb.supabase.co';
-  final String _supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFrcGh0YndleWV1YnR5eHVkc2NiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTA3OTMsImV4cCI6MjA5NTQ2Njc5M30.s1XrUlPQNkbWPBoCt_a7wRNspfv40CVcD0f5dOGtWDg';
 
   @override
   void initState() {
@@ -50,7 +46,8 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   Future<void> _generateAIBio() async {
     setState(() => _isGeneratingBio = true);
     try {
-      final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: _apiKey);
+      // قراءة مفتاح سديم من الملف المركزي
+      final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: ApiKeys.geminiKeys.first);
       final prompt = 'اكتب نبذة شخصية (Bio) قصيرة ومميزة لتطبيق تواصل اجتماعي لشاب اسمه زين العابدين، طالب سادس علمي، مهتم بالبرمجة وبناء التطبيقات، ومحب للشعر العربي الفصيح. اجعلها سطرين فقط وبطابع فخم، إبداعي، وعميق.';
       
       final response = await model.generateContent([Content.text(prompt)]);
@@ -69,7 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     }
   }
 
-  // 📸 دالة رفع الصورة الشخصية على Supabase
+  // 📸 دالة رفع الصورة الشخصية (مربوطة بالمركز)
   Future<void> _changeProfileImage() async {
     try {
       final picker = ImagePicker();
@@ -82,11 +79,12 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       final file = File(pickedFile.path);
       final fileName = '${user!.uid}_${DateTime.now().millisecondsSinceEpoch}.jpg';
       
-      final uploadUrl = Uri.parse('$_supabaseUrl/storage/v1/object/media/profile_images/$fileName');
+      // استخدام المفاتيح المركزية
+      final uploadUrl = Uri.parse('${ApiKeys.supabaseUrl}/storage/v1/object/${ApiKeys.bucketName}/profile_images/$fileName');
       final request = await HttpClient().postUrl(uploadUrl);
       
-      request.headers.set('Authorization', 'Bearer $_supabaseAnonKey');
-      request.headers.set('apikey', _supabaseAnonKey);
+      request.headers.set('Authorization', 'Bearer ${ApiKeys.supabaseAnonKey}');
+      request.headers.set('apikey', ApiKeys.supabaseAnonKey);
       request.headers.set('Content-Type', 'image/jpeg');
       
       final fileBytes = await file.readAsBytes();
@@ -96,7 +94,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       
       if (response.statusCode != 200) throw 'فشل رفع الصورة';
 
-      final downloadUrl = '$_supabaseUrl/storage/v1/object/public/media/profile_images/$fileName';
+      final downloadUrl = '${ApiKeys.supabaseUrl}/storage/v1/object/public/${ApiKeys.bucketName}/profile_images/$fileName';
 
       await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
         'profilePic': downloadUrl,
@@ -118,6 +116,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     }
   }
 
+  // 🛡️ نافذة التعديل مع نظام الحماية الشامل وفحص التكرار
   void _showEditProfileDialog(String currentName, String currentUsername) {
     final nameController = TextEditingController(text: currentName);
     final usernameController = TextEditingController(text: currentUsername.replaceAll('@', ''));
@@ -179,7 +178,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                         ),
                         onPressed: isSaving ? null : () async {
                           final newName = nameController.text.trim();
-                          final newUsername = usernameController.text.trim();
+                          final newUsername = usernameController.text.trim().toLowerCase();
                           
                           if (newName.isEmpty || newUsername.isEmpty) return;
 
@@ -187,9 +186,10 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                           final bool isVIP = email == 'sly86055r@gmail.com' || email == 'zainalabdeensalman123@gmail.com';
                           final int minLength = isVIP ? 2 : 4;
 
-                          if (newUsername.length < minLength) {
+                          // فحص طول اليوزرنيم
+                          if (newUsername.length < minLength || newUsername.length > 16) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(isVIP ? 'اليوزر يجب أن يكون حرفين على الأقل للـ VIP.' : 'يجب أن يتكون اسم المستخدم من 4 أحرف على الأقل.'), backgroundColor: Colors.red),
+                              SnackBar(content: Text(isVIP ? 'اليوزر من 2 إلى 16 حرفاً للـ VIP.' : 'يجب أن يتكون اسم المستخدم من 4 إلى 16 حرفاً.'), backgroundColor: Colors.red),
                             );
                             return;
                           }
@@ -197,6 +197,22 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                           setDialogState(() => isSaving = true);
                           
                           try {
+                            // 🛡️ فحص التكرار الحقيقي في قاعدة البيانات
+                            final userQuery = await FirebaseFirestore.instance
+                                .collection('users')
+                                .where('username', isEqualTo: '@$newUsername')
+                                .get();
+                                
+                            // إذا وجدنا أحداً يحمل هذا اليوزر، وهو ليس المستخدم الحالي (أنت)
+                            if (userQuery.docs.isNotEmpty && userQuery.docs.first.id != user!.uid) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('عذراً، هذا اليوزر محجوز مسبقاً! جرب واحداً آخر.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), backgroundColor: Colors.red),
+                              );
+                              setDialogState(() => isSaving = false);
+                              return;
+                            }
+
+                            // إذا اجتاز كل الاختبارات، نقوم بالحفظ
                             await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
                               'name': newName,
                               'username': '@$newUsername',
