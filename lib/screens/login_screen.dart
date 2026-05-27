@@ -5,7 +5,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:ui';
 import 'dart:math' as math;
 
-import 'home_screen.dart'; // تأكد من استيراد الشاشة الرئيسية الصحيحة لديك هنا أو MainScreen
+import 'home_screen.dart'; 
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -20,7 +20,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   final TextEditingController _passwordController = TextEditingController();
   
   bool _isLoading = false;
-  bool _isLogin = true; // للتبديل بين تسجيل الدخول وإنشاء حساب
+  bool _isLogin = true; 
   
   late AnimationController _pulseController;
   late AnimationController _bgController;
@@ -28,8 +28,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
+    // أنميشن النبض الأبيض للوجو
     _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
-    _bgController = AnimationController(vsync: this, duration: const Duration(seconds: 20))..repeat(reverse: true);
+    // أنميشن الخلفية الأحادية
+    _bgController = AnimationController(vsync: this, duration: const Duration(seconds: 25))..repeat(reverse: true);
   }
 
   @override
@@ -42,23 +44,22 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     super.dispose();
   }
 
-  // دالة حفظ وبناء ملف المستخدم في قاعدة البيانات
   Future<void> _saveUserToFirestore(User? user, {String? customName}) async {
     if (user != null) {
       final userDoc = FirebaseFirestore.instance.collection('users').doc(user.uid);
       
-      // نتحقق أولاً إذا كان الحساب موجوداً مسبقاً حتى لا نمسح بياناته القديمة
       final docSnapshot = await userDoc.get();
       if (!docSnapshot.exists) {
         await userDoc.set({
           'uid': user.uid,
           'email': user.email,
           'name': customName ?? user.displayName ?? 'مستكشف فضاء',
-          'username': '@user_${user.uid.substring(0, 6)}', // اسم مستخدم افتراضي
+          'username': '@user_${user.uid.substring(0, 6)}', 
           'bio': 'مستكشف جديد في فضاء...',
-          'posts_count': '0',
-          'followers_count': '0',
-          'following_count': '0',
+          'posts_count': 0,
+          'followers_count': 0,
+          'following_count': 0,
+          'profilePic': '',
           'createdAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
       }
@@ -80,9 +81,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       );
       final UserCredential userCred = await FirebaseAuth.instance.signInWithCredential(credential);
       
-      // حفظ البيانات في Firestore
       await _saveUserToFirestore(userCred.user);
-      
       _navigateToMain();
     } catch (e) {
       _showError(e.toString());
@@ -100,11 +99,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           password: _passwordController.text.trim(),
         );
       } else {
+        if (_nameController.text.trim().isEmpty) {
+          _showError("يرجى إدخال اسمك الكامل لبدء الرحلة.");
+          setState(() => _isLoading = false);
+          return;
+        }
         final UserCredential userCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
-        // حفظ البيانات مع إرسال الاسم الذي أدخله المستخدم
         await _saveUserToFirestore(userCred.user, customName: _nameController.text.trim());
       }
       _navigateToMain();
@@ -119,19 +122,23 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   void _navigateToMain() {
     if (!mounted) return;
-    // قم بتغيير MainScreen إلى اسم الكلاس الرئيسي الخاص بك
-    Navigator.pushReplacementNamed(context, '/main'); // أو استبدلها بـ MaterialPageRoute
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
   }
 
   void _showAuthErrorDialog(FirebaseAuthException e) {
     if (!mounted) return;
+    String errorMessage = "حدث خطأ غير معروف.";
+    if (e.code == 'user-not-found') errorMessage = "لم يتم العثور على حساب بهذا البريد.";
+    else if (e.code == 'wrong-password') errorMessage = "كلمة المرور غير صحيحة.";
+    else if (e.code == 'email-already-in-use') errorMessage = "هذا البريد الإلكتروني مسجل مسبقاً.";
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.amber.shade900,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text("رمز الخطأ: ${e.code}", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: Text(e.message ?? "لا توجد تفاصيل", style: const TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF101015),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Colors.white.withOpacity(0.1))),
+        title: const Text("تنبيه", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text(errorMessage, style: const TextStyle(color: Colors.white70)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("حسناً", style: TextStyle(color: Colors.white)))
         ],
@@ -144,10 +151,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: Colors.red.shade900,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        backgroundColor: const Color(0xFF101015),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Colors.white.withOpacity(0.1))),
         title: const Text("خطأ!", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: SingleChildScrollView(child: Text(msg, style: const TextStyle(color: Colors.white))),
+        content: SingleChildScrollView(child: Text(msg, style: const TextStyle(color: Colors.white70))),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("حسناً", style: TextStyle(color: Colors.white)))
         ],
@@ -158,18 +165,23 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF050508),
       body: Stack(
         children: [
-          // الخلفية المتوهجة
+          // الخلفية المتوهجة العميقة
           AnimatedBuilder(
             animation: _bgController,
             builder: (context, child) {
               return Container(
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
-                    colors: const [Color(0xFF2A1B54), Color(0xFF0B0B19)],
-                    center: Alignment(math.sin(_bgController.value * math.pi), math.cos(_bgController.value * math.pi)),
-                    radius: 1.5,
+                    colors: [
+                      Colors.white.withOpacity(0.04),
+                      const Color(0xFF0A0A0E),
+                      const Color(0xFF030305),
+                    ],
+                    center: Alignment(math.sin(_bgController.value * math.pi) * 0.5, math.cos(_bgController.value * math.pi) * 0.5),
+                    radius: 1.6,
                   ),
                 ),
               );
@@ -179,43 +191,64 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 32.0),
                 child: TweenAnimationBuilder(
                   tween: Tween<double>(begin: 0, end: 1),
-                  duration: const Duration(milliseconds: 1000),
+                  duration: const Duration(milliseconds: 1200),
                   curve: Curves.easeOutCubic,
                   builder: (context, double value, child) {
-                    return Transform.translate(offset: Offset(0, 30 * (1 - value)), child: Opacity(opacity: value, child: child));
+                    return Transform.translate(
+                      offset: Offset(0, 40 * (1 - value)), 
+                      child: Opacity(opacity: value, child: child)
+                    );
                   },
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // اللوجو
+                      // اللوجو الفاخر
                       AnimatedBuilder(
                         animation: _pulseController,
                         builder: (context, child) {
                           return Column(
                             children: [
                               Container(
+                                padding: const EdgeInsets.all(2),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   boxShadow: [
-                                    BoxShadow(color: Colors.blueAccent.withOpacity(0.5 * _pulseController.value), blurRadius: 40 * _pulseController.value, spreadRadius: 5 * _pulseController.value),
+                                    BoxShadow(
+                                      color: Colors.white.withOpacity(0.15 * _pulseController.value), 
+                                      blurRadius: 30 * _pulseController.value, 
+                                      spreadRadius: 5 * _pulseController.value
+                                    ),
                                   ],
                                 ),
-                                child: const Icon(Icons.blur_on, size: 90, color: Colors.white),
+                                child: const Icon(Icons.blur_on_rounded, size: 90, color: Colors.white),
                               ),
                               const SizedBox(height: 15),
-                              Text("فَـضـاء", style: TextStyle(fontSize: 38, fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.white, shadows: [Shadow(color: Colors.blueAccent.withOpacity(0.8 * _pulseController.value), blurRadius: 20 * _pulseController.value)])),
+                              const Text(
+                                "فَـضـاء", 
+                                style: TextStyle(
+                                  fontSize: 40, 
+                                  fontWeight: FontWeight.w900, 
+                                  letterSpacing: 3, 
+                                  color: Colors.white,
+                                )
+                              ),
                             ],
                           );
                         },
                       ),
-                      const SizedBox(height: 35),
+                      const SizedBox(height: 40),
                       
                       AnimatedSwitcher(
                         duration: const Duration(milliseconds: 400),
-                        child: Text(_isLogin ? "مرحباً بك مجدداً 👋" : "انضم إلى عالمنا 🚀", key: ValueKey<bool>(_isLogin), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white70)),
+                        child: Text(
+                          _isLogin ? "مرحباً بك مجدداً" : "انضم إلى عالمنا", 
+                          key: ValueKey<bool>(_isLogin), 
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white)
+                        ),
                       ),
                       const SizedBox(height: 25),
 
@@ -225,44 +258,56 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                         curve: Curves.easeInOutBack,
                         child: _isLogin ? const SizedBox.shrink() : Padding(
                           padding: const EdgeInsets.only(bottom: 16),
-                          child: GlassTextField(controller: _nameController, hintText: "الاسم الكامل", icon: Icons.person_outline),
+                          child: GlassTextField(controller: _nameController, hintText: "الاسم الكامل", icon: Icons.person_outline_rounded),
                         ),
                       ),
                       
                       GlassTextField(controller: _emailController, hintText: "البريد الإلكتروني", icon: Icons.email_outlined),
                       const SizedBox(height: 16),
-                      GlassTextField(controller: _passwordController, hintText: "كلمة المرور", icon: Icons.lock_outline, isPassword: true),
-                      const SizedBox(height: 30),
+                      GlassTextField(controller: _passwordController, hintText: "كلمة المرور", icon: Icons.lock_outline_rounded, isPassword: true),
+                      const SizedBox(height: 35),
                       
-                      // زر الدخول/الإنشاء
+                      // زر الدخول/الإنشاء (Premium White Button)
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         width: double.infinity,
                         height: 55,
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(15),
-                          gradient: const LinearGradient(colors: [Color(0xFF0095F6), Color(0xFF005C9E)]),
-                          boxShadow: [BoxShadow(color: const Color(0xFF0095F6).withOpacity(0.4), blurRadius: 15, offset: const Offset(0, 8))],
+                          borderRadius: BorderRadius.circular(16),
+                          color: Colors.white,
+                          boxShadow: [BoxShadow(color: Colors.white.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 8))],
                         ),
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : submitEmailAuth,
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent, 
+                            shadowColor: Colors.transparent, 
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))
+                          ),
                           child: _isLoading 
-                              ? const SizedBox(height: 25, width: 25, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
-                              : AnimatedSwitcher(duration: const Duration(milliseconds: 300), child: Text(_isLogin ? "تسجيل الدخول" : "إنشاء حساب", key: ValueKey<bool>(_isLogin), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white))),
+                              ? const SizedBox(height: 25, width: 25, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2.5)) 
+                              : AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 300), 
+                                  child: Text(
+                                    _isLogin ? "تسجيل الدخول" : "إنشاء حساب", 
+                                    key: ValueKey<bool>(_isLogin), 
+                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.black)
+                                  )
+                                ),
                         ),
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 25),
 
-                      // خط فاصل شفاف
+                      // خط فاصل
                       Row(
                         children: [
-                          Expanded(child: Divider(color: Colors.white.withOpacity(0.2), thickness: 1)),
-                          const Padding(padding: EdgeInsets.symmetric(horizontal: 10), child: Text("أو", style: TextStyle(color: Colors.white54))),
-                          Expanded(child: Divider(color: Colors.white.withOpacity(0.2), thickness: 1)),
+                          Expanded(child: Divider(color: Colors.white.withOpacity(0.1), thickness: 1)),
+                          const Padding(padding: EdgeInsets.symmetric(horizontal: 15), child: Text("أو", style: TextStyle(color: Colors.white54))),
+                          Expanded(child: Divider(color: Colors.white.withOpacity(0.1), thickness: 1)),
                         ],
                       ),
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 25),
 
                       // زر جوجل
                       SizedBox(
@@ -270,31 +315,36 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                         height: 55,
                         child: OutlinedButton.icon(
                           onPressed: _isLoading ? null : _signInWithGoogle,
-                          icon: const Icon(Icons.g_mobiledata, color: Colors.white, size: 30), // آيقونة جوجل
-                          label: const Text('المتابعة باستخدام Google', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                          icon: const Icon(Icons.g_mobiledata_rounded, color: Colors.white, size: 32),
+                          label: const Text('المتابعة باستخدام Google', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                           style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.white.withOpacity(0.3)),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                            backgroundColor: Colors.white.withOpacity(0.05),
+                            side: BorderSide(color: Colors.white.withOpacity(0.2), width: 1.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            backgroundColor: Colors.white.withOpacity(0.03),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 25),
+                      const SizedBox(height: 35),
                       
                       // زر التبديل
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(_isLogin ? "ليس لديك حساب؟ " : "لديك حساب بالفعل؟ ", style: const TextStyle(color: Colors.white60)),
+                          Text(_isLogin ? "ليس لديك حساب؟ " : "لديك حساب بالفعل؟ ", style: TextStyle(color: Colors.white.withOpacity(0.6))),
                           GestureDetector(
                             onTap: () => setState(() => _isLogin = !_isLogin),
                             child: AnimatedSwitcher(
                               duration: const Duration(milliseconds: 300),
-                              child: Text(_isLogin ? "إنشاء حساب" : "تسجيل الدخول", key: ValueKey<bool>(_isLogin), style: const TextStyle(color: Color(0xFF0095F6), fontWeight: FontWeight.bold, fontSize: 16)),
+                              child: Text(
+                                _isLogin ? "إنشاء حساب" : "تسجيل الدخول", 
+                                key: ValueKey<bool>(_isLogin), 
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15, decoration: TextDecoration.underline)
+                              ),
                             ),
                           ),
                         ],
                       ),
+                      const SizedBox(height: 20),
                     ],
                   ),
                 ),
@@ -307,31 +357,41 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   }
 }
 
-// ويدجت الإدخال الزجاجي 
+// ويدجت الإدخال الزجاجي الفاخر
 class GlassTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
   final IconData icon;
   final bool isPassword;
 
-  const GlassTextField({Key? key, required this.controller, required this.hintText, required this.icon, this.isPassword = false}) : super(key: key);
+  const GlassTextField({
+    super.key, 
+    required this.controller, 
+    required this.hintText, 
+    required this.icon, 
+    this.isPassword = false
+  });
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(15),
+      borderRadius: BorderRadius.circular(16),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
         child: Container(
-          decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.white.withOpacity(0.1))),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.04), 
+            borderRadius: BorderRadius.circular(16), 
+            border: Border.all(color: Colors.white.withOpacity(0.08))
+          ),
           child: TextField(
             controller: controller,
             obscureText: isPassword,
-            style: const TextStyle(color: Colors.white),
+            style: const TextStyle(color: Colors.white, fontSize: 16),
             decoration: InputDecoration(
               hintText: hintText,
-              hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
-              prefixIcon: Icon(icon, color: Colors.white70),
+              hintStyle: TextStyle(color: Colors.white.withOpacity(0.3), fontWeight: FontWeight.w300),
+              prefixIcon: Icon(icon, color: Colors.white54, size: 22),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
             ),
