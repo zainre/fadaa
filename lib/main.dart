@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
-// استدعاء الشاشات من مجلد screens الخاص بك
+// استدعاء الشاشات من مجلد screens
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
@@ -22,7 +22,7 @@ void main() async {
       ),
     );
   } catch (e) {
-    print("خطأ في تهيئة فايربيس: $e");
+    debugPrint("خطأ في تهيئة فايربيس: $e");
   }
   
   runApp(const FadaaApp());
@@ -38,8 +38,9 @@ class FadaaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0B0B19), 
-        primaryColor: const Color(0xFF0095F6),
+        // تم توحيد اللون هنا ليكون مطابقاً للثيم الفاخر في كل التطبيق
+        scaffoldBackgroundColor: const Color(0xFF050508), 
+        primaryColor: Colors.white,
         fontFamily: 'sans-serif', 
       ),
       localizationsDelegates: const [
@@ -49,25 +50,22 @@ class FadaaApp extends StatelessWidget {
       ],
       supportedLocales: const [Locale('ar', 'AE')],
       
-      // التوجيه التلقائي الذكي باستخدام StreamBuilder
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          // جاري التحقق من حالة المستخدم
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Scaffold(
+              backgroundColor: Color(0xFF050508),
               body: Center(
-                child: CircularProgressIndicator(color: Color(0xFFA259FF))
+                child: CircularProgressIndicator(color: Colors.white)
               )
             );
           }
           
-          // إذا كان المستخدم يملك حساباً ومسجلاً للدخول، انقله للرئيسية
           if (snapshot.hasData) {
             return const HomeScreen(); 
           }
           
-          // إذا لم يكن مسجلاً، انقله لشاشة تسجيل الدخول
           return const LoginScreen(); 
         },
       ),
