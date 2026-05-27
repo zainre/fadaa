@@ -3,13 +3,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'dart:math' as math;
-import 'dart:ui'; // مطلوب لتأثير الزجاج (Glassmorphism)
+import 'dart:ui'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    // تم ربط بيانات Firebase من ملف الـ JSON الذي أرسلته
+    // تم ربط بيانات Firebase بالكامل مع إضافة authDomain لحل مشكلة الاتصال
     await Firebase.initializeApp(
       options: const FirebaseOptions(
         apiKey: "AIzaSyC1Ao53gJgrlw3DwoRoq0xK9Wq1-dPB8uc",
@@ -17,6 +17,7 @@ void main() async {
         messagingSenderId: "611756083257",
         projectId: "gen-lang-client-0777727516",
         storageBucket: "gen-lang-client-0777727516.firebasestorage.app", 
+        authDomain: "gen-lang-client-0777727516.firebaseapp.com", // 👈 السطر السحري الذي تمت إضافته
       ),
     );
   } catch (e) {
@@ -72,13 +73,13 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     
-    // أنميشن النبض والتوهج الثابت (مدته ثانيتين ليعطي تأثير الإضاءة الهادئة)
+    // أنميشن النبض والتوهج الثابت
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
 
-    // أنميشن الخلفية (حركة بطيئة للألوان)
+    // أنميشن الخلفية
     _bgController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 20),
@@ -110,9 +111,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         );
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("تم إنشاء الحساب بنجاح! 🎉", style: TextStyle(fontWeight: FontWeight.bold)),
+          content: Text("تم بنجاح! 🎉", style: TextStyle(fontWeight: FontWeight.bold)),
           backgroundColor: Colors.green,
-          behavior: SnackBarBehavior.floating,
         ));
       }
       if (!mounted) return;
@@ -120,35 +120,29 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
-      String errorMessage = "حدث خطأ غير معروف!";
-      
-      // معالجة أخطاء فايربيس بالتفصيل
-      if (e.code == 'weak-password') {
-        errorMessage = 'كلمة المرور ضعيفة جداً.';
-      } else if (e.code == 'email-already-in-use') {
-        errorMessage = 'هذا البريد الإلكتروني مسجل لدينا مسبقاً.';
-      } else if (e.code == 'invalid-email') {
-        errorMessage = 'صيغة البريد الإلكتروني غير صحيحة.';
-      } else if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
-        errorMessage = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
-      } else {
-        errorMessage = e.message ?? errorMessage;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(errorMessage, style: const TextStyle(fontWeight: FontWeight.bold)), 
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-      ));
+      // 👈 النافذة المنبثقة الأولى (لأخطاء فايربيس المحددة)
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.amber.shade900,
+          title: Text("رمز الخطأ: ${e.code}", style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          content: Text(e.message ?? "لا توجد تفاصيل", style: const TextStyle(color: Colors.white, fontSize: 16)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("حسناً", style: TextStyle(color: Colors.white)),
+            )
+          ],
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
-      
-      // النافذة المنبثقة لمعرفة الخطأ الحقيقي
+      // 👈 النافذة المنبثقة الثانية (للأخطاء العامة وأخطاء الاتصال)
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
           backgroundColor: Colors.red.shade900,
-          title: const Text("تفاصيل الخطأ السري", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: const Text("خطأ عام!", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Text(e.toString(), style: const TextStyle(color: Colors.white, fontSize: 16)),
           ),
@@ -169,7 +163,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. الخلفية المتحركة
           AnimatedBuilder(
             animation: _bgController,
             builder: (context, child) {
@@ -188,7 +181,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             },
           ),
           
-          // 2. المحتوى مع تأثير الظهور
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -209,7 +201,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // أنميشن التوهج والنبض الثابت (بدون حركة طفو)
                       AnimatedBuilder(
                         animation: _pulseController,
                         builder: (context, child) {
@@ -335,9 +326,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   }
 }
 
-// ---------------------------------------------------------
-// ويدجت مخصص لحقول الإدخال بتأثير الزجاج
-// ---------------------------------------------------------
 class GlassTextField extends StatelessWidget {
   final TextEditingController controller;
   final String hintText;
