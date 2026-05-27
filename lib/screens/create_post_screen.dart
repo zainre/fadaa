@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:ui';
@@ -30,12 +29,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
 
   late AnimationController _bgController;
 
-  // مفاتيح سَديم الأربعة لضمان عدم التوقف
+  // ==========================================
+  // مفاتيح Supabase الخاصة بك (تم دمجها برمجياً)
+  // ==========================================
+  final String _supabaseUrl = 'https://qkphtbweyeubtyxudscb.supabase.co';
+  final String _supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFrcGh0YndleWV1YnR5eHVkc2NiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTA3OTMsImV4cCI6MjA5NTQ2Njc5M30.s1XrUlPQNkbWPBoCt_a7wRNspfv40CVcD0f5dOGtWDg'; 
+  final String _bucketName = 'media'; 
+  // ==========================================
+
   final List<String> _apiKeys = [
-    'AIzaSyCzHgKi4LjOdMkY1ngembMvtfsvmIr9RBE',
-    'AIzaSyDK9g15HqwCUY-pXcneTMgpV_35Y7sXQVA',
-    'AIzaSyDN6c9X9txXrD7OaIgYrzIY1d_sk_zZmdI',
-    'AIzaSyBOrfXgIPJztDb0J1xWMS3DrgrjRFKgopM',
+    'AIzaSyCub9KcJtGTZdZ-PAC6rheWOmAw0EZORxc',
+    'AIzaSyD86oeJ6ZNQHkjzIyYAaOZ1oiUZR4G-h-Q',
+    'AIzaSyA2swL6nANoba5HC8VZ_iKzH5ElfNOKrZU',
+    'AIzaSyD6QamLUA9y3ugUH2tl8H6eYBmwo9-wtBU',
   ];
 
   @override
@@ -52,17 +58,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
     super.dispose();
   }
 
-  // 📸 دالة التقاط الوسائط (صور أو فيديو)
   Future<void> _pickMedia() async {
     final picker = ImagePicker();
     XFile? pickedFile;
 
     if (_selectedType == UploadType.reel) {
-      // الريلز يتطلب فيديو (الحد الأقصى 60 ثانية)
       pickedFile = await picker.pickVideo(source: ImageSource.gallery, maxDuration: const Duration(minutes: 1));
       _isVideo = true;
     } else {
-      // المنشورات والقصص (مبدئياً صور)
       pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
       _isVideo = false;
     }
@@ -84,10 +87,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
     }
   }
 
-  // 🪄 دالة الذكاء الاصطناعي (مع نظام التبديل التلقائي للمفاتيح وموديل 3.5-flash)
   Future<void> _enhanceCaptionWithAI() async {
     if (_captionController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اكتب فكرة بسيطة أولاً ليقوم سديم بتطويرها! 🌌'), backgroundColor: Colors.black87));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('اكتب فكرة بسيطة أولاً ليقوم سديم بتطويرها! 🌌', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)), backgroundColor: Colors.white));
       return;
     }
 
@@ -116,54 +118,60 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
     }
 
     if (!success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم يواجه تشويشاً حالياً، حاول مرة أخرى.'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم يواجه تشويشاً حالياً، حاول مرة أخرى.', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), backgroundColor: Colors.red));
     }
     if (mounted) setState(() => _isGeneratingAI = false);
   }
 
-  // 🚀 دالة الإطلاق إلى قاعدة البيانات
+  // 🚀 دالة الرفع لـ Supabase المدمجة مع Firestore
   Future<void> _uploadMedia() async {
     if (_mediaFile == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يجب اختيار ملف وسائط أولاً!'), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يجب اختيار ملف وسائط أولاً!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), backgroundColor: Colors.red));
       return;
     }
 
     setState(() => _isLoading = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null) throw 'المستخدم غير مسجل الدخول';
 
       final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
       final username = userDoc.data()?['username'] ?? '@مستكشف';
       final displayName = userDoc.data()?['name'] ?? 'رائد فضاء';
       final profilePic = userDoc.data()?['profilePic'] ?? '';
 
-      // تحديد مسار التخزين وقاعدة البيانات بناءً على النوع
-      String folderName;
       String collectionName;
-
       switch (_selectedType) {
-        case UploadType.post:
-          folderName = 'posts_images';
-          collectionName = 'posts';
-          break;
-        case UploadType.reel:
-          folderName = 'reels_videos';
-          collectionName = 'reels';
-          break;
-        case UploadType.story:
-          folderName = 'stories_media';
-          collectionName = 'stories';
-          break;
+        case UploadType.post: collectionName = 'posts'; break;
+        case UploadType.reel: collectionName = 'reels'; break;
+        case UploadType.story: collectionName = 'stories'; break;
       }
 
-      // رفع الملف إلى Storage
       final fileExt = _isVideo ? '.mp4' : '.jpg';
-      final storageRef = FirebaseStorage.instance.ref().child('$folderName/${user.uid}_${DateTime.now().millisecondsSinceEpoch}$fileExt');
-      await storageRef.putFile(_mediaFile!);
-      final mediaUrl = await storageRef.getDownloadURL();
+      final fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}$fileExt';
+      final mimeType = _isVideo ? 'video/mp4' : 'image/jpeg';
+      
+      // رفع الملف إلى Supabase
+      final uploadUrl = Uri.parse('$_supabaseUrl/storage/v1/object/$_bucketName/$collectionName/$fileName');
+      final request = await HttpClient().postUrl(uploadUrl);
+      
+      request.headers.set('Authorization', 'Bearer $_supabaseAnonKey');
+      request.headers.set('apikey', _supabaseAnonKey);
+      request.headers.set('Content-Type', mimeType);
+      
+      final fileBytes = await _mediaFile!.readAsBytes();
+      request.add(fileBytes);
+      
+      final response = await request.close();
+      
+      if (response.statusCode != 200) {
+        throw 'تأكد أن حاوية media تم تفعيل خيار Public لها في Supabase!';
+      }
 
-      // حفظ البيانات في Firestore
+      // الحصول على الرابط
+      final mediaUrl = '$_supabaseUrl/storage/v1/object/public/$_bucketName/$collectionName/$fileName';
+
+      // الحفظ في قاعدة بياناتك (Firebase)
       await FirebaseFirestore.instance.collection(collectionName).add({
         'userId': user.uid,
         'username': username,
@@ -177,7 +185,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // تحديث العداد في البروفايل (للمنشورات والريلز فقط)
       if (_selectedType != UploadType.story) {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
           'posts_count': FieldValue.increment(1),
@@ -185,12 +192,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
       }
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🚀 تم الإطلاق بنجاح بنجاح!'), backgroundColor: Colors.green));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🚀 تم الإطلاق بنجاح!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), backgroundColor: Colors.green));
       Navigator.pop(context);
 
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء الرفع: $e'), backgroundColor: Colors.red));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء الرفع: $e', style: const TextStyle(color: Colors.white)), backgroundColor: Colors.red));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -200,7 +207,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF050508), // ثيم الأوبسيديان الفاخر
+      backgroundColor: const Color(0xFF050508),
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -210,7 +217,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
       ),
       body: Stack(
         children: [
-          // الخلفية الأحادية
           AnimatedBuilder(
             animation: _bgController,
             builder: (context, child) {
@@ -233,7 +239,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // شريط اختيار نوع الرفع الزجاجي
                   GlassContainer(
                     padding: const EdgeInsets.all(6),
                     child: Row(
@@ -246,7 +251,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
                   ),
                   const SizedBox(height: 25),
 
-                  // منطقة معاينة الوسائط
                   GestureDetector(
                     onTap: _pickMedia,
                     child: ClipRRect(
@@ -292,7 +296,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
                   ),
                   const SizedBox(height: 25),
 
-                  // منطقة الوصف (Caption)
                   if (_selectedType != UploadType.story) ...[
                     const Text('وصف الإطلاق', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
@@ -311,7 +314,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
                     ),
                     const SizedBox(height: 15),
 
-                    // زر سديم لتحسين النص
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -336,7 +338,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
 
                   if (_selectedType == UploadType.story) const SizedBox(height: 40),
 
-                  // زر الإطلاق النهائي
                   SizedBox(
                     width: double.infinity,
                     height: 55,
@@ -367,7 +368,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
     );
   }
 
-  // ويدجت داخلي لأزرار التبديل العلوية
   Widget _buildTypeSelector(UploadType type, String label, IconData icon) {
     final isSelected = _selectedType == type;
     return Expanded(
@@ -410,7 +410,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
   }
 }
 
-// ويدجت الزجاج المخصص لهذه الشاشة
 class GlassContainer extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
