@@ -2,22 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'dart:math' as math; // أضفنا هذه المكتبة لحسابات الدوران والطفو
+import 'dart:math' as math;
+import 'dart:ui'; // مطلوب لتأثير الزجاج (Glassmorphism)
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
+    // تم ربط بيانات Firebase من ملف الـ JSON الذي أرسلته
     await Firebase.initializeApp(
       options: const FirebaseOptions(
         apiKey: "AIzaSyC1Ao53gJgrlw3DwoRoq0xK9Wq1-dPB8uc",
         appId: "1:611756083257:android:9f48cc6b3aad31d29865e8",
         messagingSenderId: "611756083257",
         projectId: "gen-lang-client-0777727516",
+        storageBucket: "gen-lang-client-0777727516.firebasestorage.app", // تمت الإضافة
       ),
     );
   } catch (e) {
-    print("خطأ في فايربيس: $e");
+    print("خطأ في تهيئة فايربيس: $e");
   }
   
   runApp(const FadaaApp());
@@ -33,8 +36,9 @@ class FadaaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black,
+        scaffoldBackgroundColor: const Color(0xFF0B0B19), // لون خلفية أغمق
         primaryColor: const Color(0xFF0095F6),
+        fontFamily: 'sans-serif', // يفضل إضافة خط عربي جميل هنا لاحقاً
       ),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -53,29 +57,37 @@ class AuthScreen extends StatefulWidget {
   _AuthScreenState createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateMixin {
+class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   
   bool isLoading = false;
-  bool isLogin = true; // للتبديل بين تسجيل الدخول وإنشاء الحساب
+  bool isLogin = true;
   
-  late AnimationController _animationController;
+  late AnimationController _floatController;
+  late AnimationController _bgController;
 
   @override
   void initState() {
     super.initState();
-    // أنميشن مستمر وبطيء يناسب الفضاء (10 ثواني للدورة الكاملة)
-    _animationController = AnimationController(
+    // أنميشن الشعار (دوران وطفو)
+    _floatController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 10),
+      duration: const Duration(seconds: 12),
     )..repeat();
+
+    // أنميشن الخلفية (حركة بطيئة للألوان)
+    _bgController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 20),
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
-    _animationController.dispose();
+    _floatController.dispose();
+    _bgController.dispose();
     nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
@@ -86,26 +98,54 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
     setState(() => isLoading = true);
     try {
       if (isLogin) {
-        // تسجيل الدخول
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
       } else {
-        // إنشاء حساب جديد
         await FirebaseAuth.instance.createUserWithEmailAndPassword(
           email: emailController.text.trim(),
           password: passwordController.text.trim(),
         );
-        // هنا يمكن حفظ الاسم (nameController.text) في Firestore لاحقاً
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("تم إنشاء الحساب بنجاح! 🎉"), backgroundColor: Colors.green));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("تم إنشاء الحساب بنجاح! 🎉", style: TextStyle(fontWeight: FontWeight.bold)),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ));
       }
       if (!mounted) return;
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const MainScreen()));
+      
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      String errorMessage = "حدث خطأ غير معروف!";
+      
+      // معالجة أخطاء فايربيس بالتفصيل
+      if (e.code == 'weak-password') {
+        errorMessage = 'كلمة المرور ضعيفة جداً.';
+      } else if (e.code == 'email-already-in-use') {
+        errorMessage = 'هذا البريد الإلكتروني مسجل لدينا مسبقاً.';
+      } else if (e.code == 'invalid-email') {
+        errorMessage = 'صيغة البريد الإلكتروني غير صحيحة.';
+      } else if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        errorMessage = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
+      } else {
+        errorMessage = e.message ?? errorMessage;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(errorMessage, style: const TextStyle(fontWeight: FontWeight.bold)), 
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(isLogin ? "تأكد من البريد وكلمة المرور!" : "حدث خطأ أثناء إنشاء الحساب!"), backgroundColor: Colors.red));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text("حدث خطأ في الاتصال!"), 
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+      ));
     }
     if (mounted) setState(() => isLoading = false);
   }
@@ -113,132 +153,205 @@ class _AuthScreenState extends State<AuthScreen> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // خلفية متدرجة تعطي إيحاء بعمق الفضاء
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            colors: [Color(0xFF1A1A2E), Colors.black],
-            center: Alignment.center,
-            radius: 1.5,
+      body: Stack(
+        children: [
+          // 1. الخلفية المتحركة
+          AnimatedBuilder(
+            animation: _bgController,
+            builder: (context, child) {
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    colors: const [Color(0xFF2A1B54), Color(0xFF0B0B19)],
+                    center: Alignment(
+                      math.sin(_bgController.value * math.pi), 
+                      math.cos(_bgController.value * math.pi)
+                    ),
+                    radius: 1.5,
+                  ),
+                ),
+              );
+            },
           ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // أنميشن الطفو والدوران
-                  AnimatedBuilder(
-                    animation: _animationController,
-                    builder: (context, child) {
-                      return Transform.translate(
-                        // حركة طفو للأعلى وللأسفل
-                        offset: Offset(0, 15 * math.sin(_animationController.value * 2 * math.pi)),
-                        child: Column(
-                          children: [
-                            Transform.rotate(
-                              // دوران بطيء ومستمر للأيقونة
-                              angle: _animationController.value * 2 * math.pi,
-                              child: const Icon(Icons.blur_on, size: 100, color: Colors.white),
-                            ),
-                            const SizedBox(height: 20),
-                            const Text("فَـضـاء", style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, fontFamily: 'sans-serif')),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 40),
-                  
-                  // عنوان الشاشة يتغير حسب الحالة
-                  Text(isLogin ? "تسجيل الدخول" : "إنشاء حساب جديد", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white70)),
-                  const SizedBox(height: 30),
-
-                  // حقل الاسم يظهر فقط في حالة إنشاء حساب
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
-                    height: isLogin ? 0 : 70,
-                    curve: Curves.easeInOut,
-                    child: isLogin ? const SizedBox.shrink() : TextField(
-                      controller: nameController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: "الاسم الكامل",
-                        hintStyle: const TextStyle(color: Colors.grey),
-                        filled: true,
-                        fillColor: Colors.black.withOpacity(0.5),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+          
+          // 2. المحتوى مع تأثير الظهور (Fade & Slide)
+          SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                child: TweenAnimationBuilder(
+                  tween: Tween<double>(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 1200),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, double value, child) {
+                    return Transform.translate(
+                      offset: Offset(0, 50 * (1 - value)), // حركة من الأسفل للأعلى
+                      child: Opacity(
+                        opacity: value,
+                        child: child,
                       ),
-                    ),
-                  ),
-                  
-                  TextField(
-                    controller: emailController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: "البريد الإلكتروني",
-                      hintStyle: const TextStyle(color: Colors.grey),
-                      filled: true,
-                      fillColor: Colors.black.withOpacity(0.5),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  
-                  TextField(
-                    controller: passwordController,
-                    obscureText: true,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: "كلمة المرور",
-                      hintStyle: const TextStyle(color: Colors.grey),
-                      filled: true,
-                      fillColor: Colors.black.withOpacity(0.5),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                    ),
-                  ),
-                  const SizedBox(height: 30),
-                  
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: isLoading ? null : submit,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0095F6),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: isLoading 
-                          ? const CircularProgressIndicator(color: Colors.white) 
-                          : Text(isLogin ? "دخول" : "إنشاء حساب", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  
-                  // زر التبديل بين الواجهتين
-                  Row(
+                    );
+                  },
+                  child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(isLogin ? "ليس لديك حساب؟ " : "لديك حساب بالفعل؟ ", style: const TextStyle(color: Colors.grey)),
-                      GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            isLogin = !isLogin;
-                            emailController.clear();
-                            passwordController.clear();
-                          });
+                      // شعار التطبيق المتحرك
+                      AnimatedBuilder(
+                        animation: _floatController,
+                        builder: (context, child) {
+                          return Transform.translate(
+                            offset: Offset(0, 15 * math.sin(_floatController.value * 2 * math.pi)),
+                            child: Column(
+                              children: [
+                                Transform.rotate(
+                                  angle: _floatController.value * 2 * math.pi,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(color: Colors.blueAccent.withOpacity(0.5), blurRadius: 30, spreadRadius: 5),
+                                      ],
+                                    ),
+                                    child: const Icon(Icons.blur_on, size: 100, color: Colors.white),
+                                  ),
+                                ),
+                                const SizedBox(height: 20),
+                                const Text("فَـضـاء", style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.white)),
+                              ],
+                            ),
+                          );
                         },
-                        child: Text(isLogin ? "إنشاء حساب" : "تسجيل الدخول", style: const TextStyle(color: Color(0xFF0095F6), fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(height: 40),
+                      
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 400),
+                        transitionBuilder: (Widget child, Animation<double> animation) {
+                          return FadeTransition(opacity: animation, child: SlideTransition(position: Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero).animate(animation), child: child));
+                        },
+                        child: Text(isLogin ? "مرحباً بك مجدداً 👋" : "انضم إلى عالمنا 🚀", key: ValueKey<bool>(isLogin), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white70)),
+                      ),
+                      const SizedBox(height: 30),
+
+                      // حقل الاسم (يظهر فقط في إنشاء حساب بانسيابية)
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeInOutBack,
+                        child: isLogin ? const SizedBox.shrink() : Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: GlassTextField(controller: nameController, hintText: "الاسم الكامل", icon: Icons.person_outline),
+                        ),
+                      ),
+                      
+                      GlassTextField(controller: emailController, hintText: "البريد الإلكتروني", icon: Icons.email_outlined),
+                      const SizedBox(height: 16),
+                      
+                      GlassTextField(controller: passwordController, hintText: "كلمة المرور", icon: Icons.lock_outline, isPassword: true),
+                      const SizedBox(height: 35),
+                      
+                      // زر الإرسال مع أنميشن الضغط
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        width: double.infinity,
+                        height: 55,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(15),
+                          gradient: const LinearGradient(colors: [Color(0xFF0095F6), Color(0xFF005C9E)]),
+                          boxShadow: [
+                            BoxShadow(color: const Color(0xFF0095F6).withOpacity(0.4), blurRadius: 15, offset: const Offset(0, 8)),
+                          ],
+                        ),
+                        child: ElevatedButton(
+                          onPressed: isLoading ? null : submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          ),
+                          child: isLoading 
+                              ? const SizedBox(height: 25, width: 25, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                              : AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 300),
+                                  child: Text(isLogin ? "تسجيل الدخول" : "إنشاء حساب", key: ValueKey<bool>(isLogin), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 25),
+                      
+                      // زر التبديل
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(isLogin ? "ليس لديك حساب؟ " : "لديك حساب بالفعل؟ ", style: const TextStyle(color: Colors.white60)),
+                          GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                isLogin = !isLogin;
+                                // لا نقوم بمسح الحقول لتسهيل التعديل على المستخدم
+                              });
+                            },
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              child: Text(
+                                isLogin ? "إنشاء حساب" : "تسجيل الدخول", 
+                                key: ValueKey<bool>(isLogin),
+                                style: const TextStyle(color: Color(0xFF0095F6), fontWeight: FontWeight.bold, fontSize: 16)
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------
+// ويدجت مخصص لحقول الإدخال بتأثير الزجاج (Glassmorphism)
+// ---------------------------------------------------------
+class GlassTextField extends StatelessWidget {
+  final TextEditingController controller;
+  final String hintText;
+  final IconData icon;
+  final bool isPassword;
+
+  const GlassTextField({
+    Key? key,
+    required this.controller,
+    required this.hintText,
+    required this.icon,
+    this.isPassword = false,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(15),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.05), // شفافية الزجاج
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(color: Colors.white.withOpacity(0.1)), // إطار خفيف
+          ),
+          child: TextField(
+            controller: controller,
+            obscureText: isPassword,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: hintText,
+              hintStyle: TextStyle(color: Colors.white.withOpacity(0.5)),
+              prefixIcon: Icon(icon, color: Colors.white70),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
             ),
           ),
         ),
@@ -256,32 +369,48 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _selectedIndex = 0;
   static const List<Widget> _widgetOptions = <Widget>[
-    Center(child: Text('الرئيسية', style: TextStyle(fontSize: 24))),
-    Center(child: Text('ريلز', style: TextStyle(fontSize: 24))),
-    Center(child: Text('المحادثات', style: TextStyle(fontSize: 24))),
-    Center(child: Text('حسابي', style: TextStyle(fontSize: 24))),
+    Center(child: Text('الرئيسية', style: TextStyle(fontSize: 24, color: Colors.white))),
+    Center(child: Text('ريلز', style: TextStyle(fontSize: 24, color: Colors.white))),
+    Center(child: Text('المحادثات', style: TextStyle(fontSize: 24, color: Colors.white))),
+    Center(child: Text('حسابي', style: TextStyle(fontSize: 24, color: Colors.white))),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("فَضاء", style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: Colors.black, centerTitle: true),
-      body: _widgetOptions.elementAt(_selectedIndex),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.video_library), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: ''),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.grey,
-        backgroundColor: Colors.black,
-        type: BottomNavigationBarType.fixed,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        onTap: (index) => setState(() => _selectedIndex = index),
+      appBar: AppBar(title: const Text("فَضاء", style: TextStyle(fontWeight: FontWeight.bold)), backgroundColor: const Color(0xFF0B0B19), centerTitle: true, elevation: 0),
+      body: Container(
+        width: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF0B0B19), Color(0xFF1A1A2E)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: _widgetOptions.elementAt(_selectedIndex),
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 10, offset: const Offset(0, -3))],
+        ),
+        child: BottomNavigationBar(
+          items: const <BottomNavigationBarItem>[
+            BottomNavigationBarItem(icon: Icon(Icons.home_filled), label: 'الرئيسية'),
+            BottomNavigationBarItem(icon: Icon(Icons.video_library), label: 'ريلز'),
+            BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline), label: 'المحادثات'),
+            BottomNavigationBarItem(icon: Icon(Icons.person_outline), label: 'حسابي'),
+          ],
+          currentIndex: _selectedIndex,
+          selectedItemColor: const Color(0xFF0095F6),
+          unselectedItemColor: Colors.grey.shade600,
+          backgroundColor: const Color(0xFF0B0B19),
+          type: BottomNavigationBarType.fixed,
+          showSelectedLabels: true,
+          showUnselectedLabels: false,
+          elevation: 0,
+          onTap: (index) => setState(() => _selectedIndex = index),
+        ),
       ),
     );
   }
