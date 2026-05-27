@@ -16,7 +16,7 @@ void main() async {
         appId: "1:611756083257:android:9f48cc6b3aad31d29865e8",
         messagingSenderId: "611756083257",
         projectId: "gen-lang-client-0777727516",
-        storageBucket: "gen-lang-client-0777727516.firebasestorage.app", // تمت الإضافة
+        storageBucket: "gen-lang-client-0777727516.firebasestorage.app", 
       ),
     );
   } catch (e) {
@@ -36,9 +36,9 @@ class FadaaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0B0B19), // لون خلفية أغمق
+        scaffoldBackgroundColor: const Color(0xFF0B0B19), 
         primaryColor: const Color(0xFF0095F6),
-        fontFamily: 'sans-serif', // يفضل إضافة خط عربي جميل هنا لاحقاً
+        fontFamily: 'sans-serif', 
       ),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
@@ -65,17 +65,18 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   bool isLoading = false;
   bool isLogin = true;
   
-  late AnimationController _floatController;
+  late AnimationController _pulseController;
   late AnimationController _bgController;
 
   @override
   void initState() {
     super.initState();
-    // أنميشن الشعار (دوران وطفو)
-    _floatController = AnimationController(
+    
+    // أنميشن النبض والتوهج الثابت (مدته ثانيتين ليعطي تأثير الإضاءة الهادئة)
+    _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 12),
-    )..repeat();
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
 
     // أنميشن الخلفية (حركة بطيئة للألوان)
     _bgController = AnimationController(
@@ -86,7 +87,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _floatController.dispose();
+    _pulseController.dispose();
     _bgController.dispose();
     nameController.dispose();
     emailController.dispose();
@@ -141,11 +142,24 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       ));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text("حدث خطأ في الاتصال!"), 
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-      ));
+      
+      // النافذة المنبثقة لمعرفة الخطأ الحقيقي
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: Colors.red.shade900,
+          title: const Text("تفاصيل الخطأ السري", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          content: SingleChildScrollView(
+            child: Text(e.toString(), style: const TextStyle(color: Colors.white, fontSize: 16)),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("حسناً", style: TextStyle(color: Colors.white)),
+            )
+          ],
+        ),
+      );
     }
     if (mounted) setState(() => isLoading = false);
   }
@@ -174,7 +188,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
             },
           ),
           
-          // 2. المحتوى مع تأثير الظهور (Fade & Slide)
+          // 2. المحتوى مع تأثير الظهور
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
@@ -185,7 +199,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                   curve: Curves.easeOutCubic,
                   builder: (context, double value, child) {
                     return Transform.translate(
-                      offset: Offset(0, 50 * (1 - value)), // حركة من الأسفل للأعلى
+                      offset: Offset(0, 50 * (1 - value)), 
                       child: Opacity(
                         opacity: value,
                         child: child,
@@ -195,30 +209,42 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      // شعار التطبيق المتحرك
+                      // أنميشن التوهج والنبض الثابت (بدون حركة طفو)
                       AnimatedBuilder(
-                        animation: _floatController,
+                        animation: _pulseController,
                         builder: (context, child) {
-                          return Transform.translate(
-                            offset: Offset(0, 15 * math.sin(_floatController.value * 2 * math.pi)),
-                            child: Column(
-                              children: [
-                                Transform.rotate(
-                                  angle: _floatController.value * 2 * math.pi,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(color: Colors.blueAccent.withOpacity(0.5), blurRadius: 30, spreadRadius: 5),
-                                      ],
+                          return Column(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.blueAccent.withOpacity(0.6 * _pulseController.value), 
+                                      blurRadius: 40 * _pulseController.value, 
+                                      spreadRadius: 10 * _pulseController.value
                                     ),
-                                    child: const Icon(Icons.blur_on, size: 100, color: Colors.white),
-                                  ),
+                                  ],
                                 ),
-                                const SizedBox(height: 20),
-                                const Text("فَـضـاء", style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold, letterSpacing: 2, color: Colors.white)),
-                              ],
-                            ),
+                                child: const Icon(Icons.blur_on, size: 100, color: Colors.white),
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                "فَـضـاء", 
+                                style: TextStyle(
+                                  fontSize: 42, 
+                                  fontWeight: FontWeight.bold, 
+                                  letterSpacing: 2, 
+                                  color: Colors.white,
+                                  shadows: [
+                                    Shadow(
+                                      color: Colors.blueAccent.withOpacity(0.8 * _pulseController.value),
+                                      blurRadius: 20 * _pulseController.value,
+                                    )
+                                  ]
+                                )
+                              ),
+                            ],
                           );
                         },
                       ),
@@ -233,7 +259,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                       ),
                       const SizedBox(height: 30),
 
-                      // حقل الاسم (يظهر فقط في إنشاء حساب بانسيابية)
                       AnimatedSize(
                         duration: const Duration(milliseconds: 400),
                         curve: Curves.easeInOutBack,
@@ -249,7 +274,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                       GlassTextField(controller: passwordController, hintText: "كلمة المرور", icon: Icons.lock_outline, isPassword: true),
                       const SizedBox(height: 35),
                       
-                      // زر الإرسال مع أنميشن الضغط
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         width: double.infinity,
@@ -278,7 +302,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                       ),
                       const SizedBox(height: 25),
                       
-                      // زر التبديل
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -287,7 +310,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                             onTap: () {
                               setState(() {
                                 isLogin = !isLogin;
-                                // لا نقوم بمسح الحقول لتسهيل التعديل على المستخدم
                               });
                             },
                             child: AnimatedSwitcher(
@@ -314,7 +336,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 }
 
 // ---------------------------------------------------------
-// ويدجت مخصص لحقول الإدخال بتأثير الزجاج (Glassmorphism)
+// ويدجت مخصص لحقول الإدخال بتأثير الزجاج
 // ---------------------------------------------------------
 class GlassTextField extends StatelessWidget {
   final TextEditingController controller;
@@ -338,9 +360,9 @@ class GlassTextField extends StatelessWidget {
         filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05), // شفافية الزجاج
+            color: Colors.white.withOpacity(0.05),
             borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.white.withOpacity(0.1)), // إطار خفيف
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
           ),
           child: TextField(
             controller: controller,
