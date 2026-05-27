@@ -3,6 +3,8 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'dart:ui';
 import 'dart:math' as math;
 
+import 'api_keys.dart'; // 👈 استدعاء ملف المفاتيح المركزي
+
 class AIAssistantScreen extends StatefulWidget {
   const AIAssistantScreen({super.key});
 
@@ -22,14 +24,6 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
   
   // حفظ مؤشر المفتاح الحالي النشط
   int _currentKeyIndex = 0;
-
-  // قائمة المفاتيح الأربعة الخاصة بك
-  final List<String> _apiKeys = [
-    'AIzaSyCzHgKi4LjOdMkY1ngembMvtfsvmIr9RBE',
-    'AIzaSyDK9g15HqwCUY-pXcneTMgpV_35Y7sXQVA',
-    'AIzaSyDN6c9X9txXrD7OaIgYrzIY1d_sk_zZmdI',
-    'AIzaSyBOrfXgIPJztDb0J1xWMS3DrgrjRFKgopM',
-  ];
 
   @override
   void initState() {
@@ -101,11 +95,11 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
     bool success = false;
     int attempts = 0;
 
-    // محاولة الإرسال مع التبديل التلقائي بين الـ 4 مفاتيح في حال الفشل
-    while (!success && attempts < _apiKeys.length) {
+    // محاولة الإرسال مع التبديل التلقائي بين المفاتيح المقروءة من الملف المركزي
+    while (!success && attempts < ApiKeys.geminiKeys.length) {
       try {
-        final currentKey = _apiKeys[_currentKeyIndex];
-        // استخدام الموديل الأحدث المستقر المستخرج من لقطة الشاشة الخاصة بك
+        final currentKey = ApiKeys.geminiKeys[_currentKeyIndex];
+        
         final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: currentKey);
         
         setState(() {
@@ -135,9 +129,9 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
         }
         
         // التحويل إلى المفتاح التالي تلقائياً في المصفوفة الدائرية
-        _currentKeyIndex = (_currentKeyIndex + 1) % _apiKeys.length;
+        _currentKeyIndex = (_currentKeyIndex + 1) % ApiKeys.geminiKeys.length;
         
-        if (attempts >= _apiKeys.length && mounted) {
+        if (attempts >= ApiKeys.geminiKeys.length && mounted) {
           setState(() {
             _messages.add({'sender': 'ai', 'text': 'عذراً أيها القائد، جميع قنوات الاتصال العصبية ممتلئة بالتشويش حالياً. أعد المحاولة لاحقاً.'});
           });
@@ -263,7 +257,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
                         builder: (context, value, child) {
                           return Transform.translate(
                             offset: Offset(0, 30 * (1 - value)),
-                            child: Opacity(opacity: value, child: child),
+                            // 🛡️ استخدام clamp لحل مشكلة الخطأ الأحمر (Opacity Error)
+                            child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
                           );
                         },
                         child: Align(
