@@ -17,10 +17,14 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
   late AnimationController _bgController;
   late AnimationController _pulseController;
   
+  // حفظ الرسائل للعرض
   final List<Map<String, String>> _messages = [];
   bool _isTyping = false;
+  
+  // جلسة المحادثة (لكي يتذكر سديم سياق الكلام)
+  ChatSession? _chatSession;
 
-  // قائمة المفاتيح الأربعة لتعزيز قوة سَديم
+  // قائمة المفاتيح الأربعة
   final List<String> _apiKeys = [
     'AIzaSyCzHgKi4LjOdMkY1ngembMvtfsvmIr9RBE',
     'AIzaSyDK9g15HqwCUY-pXcneTMgpV_35Y7sXQVA',
@@ -28,51 +32,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
     'AIzaSyBOrfXgIPJztDb0J1xWMS3DrgrjRFKgopM',
   ];
 
-  // دالة اختيار مفتاح عشوائي لضمان استمرارية الخدمة
   String get _randomApiKey => _apiKeys[math.Random().nextInt(_apiKeys.length)];
-
-  Future<void> _sendMessage() async {
-    if (_msgController.text.trim().isEmpty) return;
-
-    final userText = _msgController.text.trim();
-    setState(() {
-      _messages.add({'sender': 'user', 'text': userText});
-      _isTyping = true;
-    });
-    _msgController.clear();
-    _scrollToBottom();
-
-    bool isCommand = _executeCommand(userText);
-
-    try {
-      // هنا نستخدم المفتاح العشوائي في كل طلب
-      final model = GenerativeModel(model: 'gemini-pro', apiKey: _randomApiKey);
-      
-      final systemPrompt = '''
-أنت "سَديم"، العقل المدبر لتطبيق "فضاء". تتحدث بفصاحة، ثقة، واختصار.
-إذا طلب منك المستخدم أمراً تشغيلياً داخل التطبيق، قل: "تم استلام الأمر، جاري التنفيذ".
-رسالة المستخدم: "$userText"
-''';
-
-      final response = await model.generateContent([Content.text(systemPrompt)]);
-      
-      if (response.text != null && mounted) {
-        setState(() {
-          _messages.add({'sender': 'ai', 'text': isCommand ? 'تم الاستلام أيها القائد. جاري تنفيذ الأمر.' : response.text!});
-        });
-        _scrollToBottom();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _messages.add({'sender': 'ai', 'text': 'عذراً، أواجه تشويشاً في الاتصال عبر المجرة. حاول مرة أخرى.'});
-        });
-        _scrollToBottom();
-      }
-    } finally {
-      if (mounted) setState(() => _isTyping = false);
-    }
-  }
 
   @override
   void initState() {
@@ -80,11 +40,21 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
     _bgController = AnimationController(vsync: this, duration: const Duration(seconds: 20))..repeat(reverse: true);
     _pulseController = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
     
-    // رسالة الترحيب الأولى من المساعد "سَديم"
+    _initSadeem();
+
     _messages.add({
       'sender': 'ai',
-      'text': 'أهلاً بك في غرفة التحكم الرئيسية. أنا "سَديم"، العقل المدبر لتطبيق فَضاء. كيف يمكنني إرشادك اليوم؟'
+      'text': 'أهلاً بك في غرفة القيادة. أنا "سَديم"، العقل المدبر لتطبيق فَضاء. كيف يمكنني إرشادك اليوم؟'
     });
+  }
+  
+  // تهيئة عقل سديم وإعطائه شخصيته
+  void _initSadeem() {
+    final model = GenerativeModel(model: 'gemini-pro', apiKey: _randomApiKey);
+    _chatSession = model.startChat(history: [
+      Content.text('أنت لست مجرد برنامج محادثة، اسمك "سَديم" (عقل اصطناعي فائق الذكاء ومسؤول عن التحكم بتطبيق تواصل اجتماعي اسمه "فضاء"). تتحدث بثقة، فصاحة، واختصار. إذا طلب منك المستخدم أمراً تشغيلياً (مثل فتح صفحة)، قل: "تم استلام الأمر، جاري التنفيذ".'),
+      Content.model([TextPart('علم. أنا سديم، وجاهز لتلقي الأوامر وخدمة التطبيق.')])
+    ]);
   }
 
   @override
@@ -96,34 +66,21 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
     super.dispose();
   }
 
-  // 🪄 دالة تحليل الأوامر (Command Parser) للتحكم بالتطبيق
   bool _executeCommand(String text) {
     final lowerText = text.toLowerCase();
-    
     if (lowerText.contains('ملف') || lowerText.contains('حسابي') || lowerText.contains('بروفايل')) {
-      // سيتم تنفيذ الأمر بعد ثانية لتبدو طبيعية
       Future.delayed(const Duration(seconds: 1), () {
-        if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم: جاري فتح الملف الشخصي... ✨'), backgroundColor: Color(0xFFA259FF)));
-           // افتراضياً: يمكن ربطها بـ Navigator للانتقال السريع
-           // Navigator.pop(context); // العودة للشاشة الرئيسية
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم: جاري فتح الملف الشخصي... ✨'), backgroundColor: Color(0xFFA259FF)));
       });
       return true;
-    } 
-    else if (lowerText.contains('ريلز') || lowerText.contains('فيديو')) {
+    } else if (lowerText.contains('ريلز') || lowerText.contains('فيديو')) {
       Future.delayed(const Duration(seconds: 1), () {
-        if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم: جاري تشغيل الريلز... 🎬'), backgroundColor: Color(0xFFA259FF)));
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم: جاري تشغيل الريلز... 🎬'), backgroundColor: Color(0xFFA259FF)));
       });
       return true;
-    }
-    else if (lowerText.contains('رسائل') || lowerText.contains('محادثات') || lowerText.contains('شات')) {
+    } else if (lowerText.contains('رسائل') || lowerText.contains('محادثات')) {
       Future.delayed(const Duration(seconds: 1), () {
-        if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم: جاري فتح المراسلات... 💬'), backgroundColor: Color(0xFFA259FF)));
-        }
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم: جاري فتح المراسلات... 💬'), backgroundColor: Color(0xFFA259FF)));
       });
       return true;
     }
@@ -141,33 +98,33 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
     _msgController.clear();
     _scrollToBottom();
 
-    // 1. التحقق أولاً إذا كان النص يحتوي على "أمر تشغيل" للتحكم بالتطبيق
     bool isCommand = _executeCommand(userText);
 
     try {
-      final model = GenerativeModel(model: 'gemini-pro', apiKey: _apiKey);
-      
-      // 2. شخصية "سَديم" الصارمة والذكية
-      final systemPrompt = '''
-أنت لست مجرد برنامج محادثة، اسمك "سَديم" (عقل اصطناعي فائق الذكاء ومسؤول عن التحكم بتطبيق تواصل اجتماعي اسمه "فضاء").
-أنت تتحدث بثقة، فصاحة، واختصار. 
-إذا طلب منك المستخدم أمراً تشغيلياً (مثل فتح صفحة معينة)، قل له: "تم استلام الأمر، جاري التنفيذ".
-رسالة المستخدم الحالية هي: "$userText"
-''';
+      if (_chatSession == null) _initSadeem();
 
-      final response = await model.generateContent([Content.text(systemPrompt)]);
+      // إنشاء رسالة فارغة للذكاء الاصطناعي ليتم ملؤها تدريجياً (تأثير الكتابة الحية)
+      setState(() {
+        _messages.add({'sender': 'ai', 'text': isCommand ? 'تم الاستلام أيها القائد. جاري تنفيذ الأمر.\n\n' : ''});
+      });
       
-      if (response.text != null && mounted) {
-        setState(() {
-          // إذا كان أمراً تشغيلياً، قد نعدل الرد ليكون أسرع
-          _messages.add({'sender': 'ai', 'text': isCommand ? 'تم الاستلام أيها القائد. جاري تنفيذ الأمر.' : response.text!});
-        });
-        _scrollToBottom();
+      final aiMsgIndex = _messages.length - 1;
+      final responseStream = _chatSession!.sendMessageStream(Content.text(userText));
+
+      // استقبال الكلمات حرفاً بحرف في الوقت الفعلي
+      await for (final chunk in responseStream) {
+        if (mounted) {
+          setState(() {
+            _messages[aiMsgIndex]['text'] = _messages[aiMsgIndex]['text']! + (chunk.text ?? '');
+          });
+          _scrollToBottom();
+        }
       }
+      
     } catch (e) {
       if (mounted) {
         setState(() {
-          _messages.add({'sender': 'ai', 'text': 'عذراً، أواجه تداخلاً في إشارات السديم الفضائي حالياً. حاول مرة أخرى.'});
+          _messages.add({'sender': 'ai', 'text': 'عذراً، أواجه تشويشاً في الاتصال عبر المجرة. حاول مرة أخرى.'});
         });
         _scrollToBottom();
       }
@@ -177,11 +134,11 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
   }
 
   void _scrollToBottom() {
-    Future.delayed(const Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 50), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
         );
       }
@@ -254,18 +211,8 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
                     controller: _scrollController,
                     physics: const BouncingScrollPhysics(),
                     padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length + (_isTyping ? 1 : 0),
+                    itemCount: _messages.length,
                     itemBuilder: (context, index) {
-                      if (index == _messages.length) {
-                        return const Align(
-                          alignment: Alignment.centerRight,
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 10),
-                            child: CircularProgressIndicator(color: Color(0xFFA259FF)),
-                          ),
-                        );
-                      }
-
                       final msg = _messages[index];
                       final isAI = msg['sender'] == 'ai';
 
@@ -314,6 +261,13 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
                       ),
                       child: Row(
                         children: [
+                          // زر الصوت الجديد
+                          IconButton(
+                            icon: const Icon(Icons.mic_none, color: Colors.white70, size: 26),
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الاستماع الصوتي قادم في التحديثات القادمة! 🎤'), backgroundColor: Color(0xFF0095F6)));
+                            },
+                          ),
                           Expanded(
                             child: Container(
                               decoration: BoxDecoration(
@@ -339,13 +293,16 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
                           const SizedBox(width: 8),
                           GestureDetector(
                             onTap: _isTyping ? null : _sendMessage,
-                            child: Container(
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 300),
                               padding: const EdgeInsets.all(12),
-                              decoration: const BoxDecoration(
+                              decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                gradient: LinearGradient(colors: [Color(0xFF0095F6), Color(0xFFA259FF)]),
+                                gradient: LinearGradient(colors: _isTyping ? [Colors.grey, Colors.grey.shade700] : [const Color(0xFF0095F6), const Color(0xFFA259FF)]),
                               ),
-                              child: const Icon(Icons.send_rounded, color: Colors.white, size: 22),
+                              child: _isTyping 
+                                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                  : const Icon(Icons.send_rounded, color: Colors.white, size: 22),
                             ),
                           ),
                         ],
