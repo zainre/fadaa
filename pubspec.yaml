@@ -10,11 +10,13 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  firebase_core: ^2.13.0
-  firebase_auth: ^4.6.2
-  cloud_firestore: ^4.7.1
-  google_sign_in: ^6.1.4
   cupertino_icons: ^1.0.2
+  
+  # تم تحديث حزم فايربيس هنا لحل مشكلة التعارض (Pigeon Error)
+  firebase_core: ^2.32.0
+  firebase_auth: ^4.19.4
+  cloud_firestore: ^4.17.4
+  google_sign_in: ^6.2.1
 
 dev_dependencies:
   flutter_test:
