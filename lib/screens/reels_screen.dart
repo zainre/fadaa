@@ -5,6 +5,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'dart:ui';
 
+import 'api_keys.dart'; // 👈 استدعاء ملف المفاتيح المركزي
+
 class ReelsScreen extends StatelessWidget {
   const ReelsScreen({super.key});
 
@@ -58,7 +60,7 @@ class ReelsScreen extends StatelessWidget {
 }
 
 // ---------------------------------------------------------
-// ويدجت الريلز المستقل (الآن يتعامل مع بيانات حقيقية)
+// ويدجت الريلز المستقل
 // ---------------------------------------------------------
 class ReelVideoItem extends StatefulWidget {
   final QueryDocumentSnapshot reelDoc;
@@ -77,9 +79,6 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
   bool _isPlaying = true;
   
   final currentUser = FirebaseAuth.instance.currentUser;
-
-  // مفتاح Gemini لسديم
-  final String _apiKey = 'AIzaSyDN6c9X9txXrD7OaIgYrzIY1d_sk_zZmdI';
 
   @override
   void initState() {
@@ -160,7 +159,7 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
     );
   }
 
-  // ✨ نافذة سديم المخصصة للريلز
+  // ✨ نافذة سديم المخصصة للريلز (تقرأ من المركز)
   void _showAIReelDialog(String caption) {
     showDialog(
       context: context,
@@ -199,7 +198,8 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم يفكر... ✨'), backgroundColor: Colors.black87));
           try {
-            final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: _apiKey);
+            // 🛡️ استخدام المفتاح من الملف المركزي
+            final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: ApiKeys.geminiKeys.first);
             final response = await model.generateContent([Content.text('المستخدم يطلب: $label. بناءً على هذا الوصف للمقطع: "$caption". أجب باختصار وإبداع.')]);
             if (response.text != null && mounted) {
                showDialog(
