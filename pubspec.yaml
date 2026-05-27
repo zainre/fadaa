@@ -17,7 +17,8 @@ dependencies:
   firebase_auth: ^4.19.4
   cloud_firestore: ^4.17.4
   firebase_storage: ^11.7.4     # 👈 إضافة جديدة: ضرورية لرفع وحفظ الصور والفيديوهات للقصص والمنشورات
-  
+  firebase_messaging: ^14.7.19
+
   # 2. خدمات جوجل (تسجيل الدخول والذكاء الاصطناعي)
   google_sign_in: ^6.2.1
   google_generative_ai: ^0.4.3
