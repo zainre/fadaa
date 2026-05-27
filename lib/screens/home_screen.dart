@@ -7,6 +7,9 @@ import 'reels_screen.dart';
 import 'chats_screen.dart';
 import 'profile_screen.dart';
 
+// استدعاء شاشة المساعد الذكي
+import 'ai_assistant_screen.dart';
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -14,8 +17,9 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
+  late AnimationController _fabController;
 
   // القائمة النهائية للشاشات
   final List<Widget> _screens = [
@@ -24,6 +28,22 @@ class _HomeScreenState extends State<HomeScreen> {
     const ChatsScreen(),
     const ProfileScreen(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    // أنميشن نبض سحري لزر الذكاء الاصطناعي (سديم)
+    _fabController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _fabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,8 +57,50 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _currentIndex,
         children: _screens,
       ),
+
+      // -----------------------------------------------------
+      // الزر العائم المركزي (سَديم) - يطفو وينبض في المنتصف
+      // -----------------------------------------------------
+      floatingActionButton: AnimatedBuilder(
+        animation: _fabController,
+        builder: (context, child) {
+          return Container(
+            height: 60,
+            width: 60,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFA259FF).withOpacity(0.6 * _fabController.value),
+                  blurRadius: 20 * _fabController.value,
+                  spreadRadius: 5 * _fabController.value,
+                )
+              ],
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0095F6), Color(0xFFA259FF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: FloatingActionButton(
+              onPressed: () {
+                // الانتقال إلى غرفة التحكم الخاصة بسديم
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const AIAssistantScreen()));
+              },
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              tooltip: 'المُرشِد سديم',
+              child: const Icon(Icons.auto_awesome, color: Colors.white, size: 28),
+            ),
+          );
+        }
+      ),
+      // تحديد موقع الزر في منتصف الشريط السفلي
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       
-      // شريط التنقل الزجاجي
+      // -----------------------------------------------------
+      // شريط التنقل الزجاجي السفلي
+      // -----------------------------------------------------
       bottomNavigationBar: ClipRRect(
         borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(25),
