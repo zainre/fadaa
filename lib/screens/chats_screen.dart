@@ -213,14 +213,17 @@ class _ChatsScreenState extends State<ChatsScreen> with TickerProviderStateMixin
                           final String profilePic = userData['profilePic'] ?? '';
                           
                           // أنميشن دخول متدرج للبطاقات
+                          int delay = (index * 100).clamp(0, 400); // 🛡️ تم تصحيح الطريقة لتجنب أخطاء النوع
+                          
                           return TweenAnimationBuilder(
                             tween: Tween<double>(begin: 0, end: 1),
-                            duration: Duration(milliseconds: 300 + (index * 100).clamp(0, 400)), // تأخير متدرج سريع
+                            duration: Duration(milliseconds: 300 + delay), 
                             curve: Curves.easeOutQuint,
                             builder: (context, double value, child) {
                               return Transform.translate(
                                 offset: Offset(0, 30 * (1 - value)),
-                                child: Opacity(opacity: value, child: child),
+                                // 🛡️ تم وضع حماية للشفافية
+                                child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
                               );
                             },
                             child: Container(
