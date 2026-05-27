@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:ui';
 import 'dart:math' as math;
 
@@ -19,8 +22,9 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   late AnimationController _glowController;
   
   bool _isGeneratingBio = false;
+  bool _isUploadingImage = false;
 
-  // مفتاح Gemini الذي أرسلته (يمكنك تغييره لاحقاً)
+  // مفتاح Gemini الخاص بك
   final String _apiKey = 'AIzaSyDN6c9X9txXrD7OaIgYrzIY1d_sk_zZmdI';
 
   @override
@@ -29,7 +33,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     // أنميشن طفو الصورة الشخصية
     _floatController = AnimationController(vsync: this, duration: const Duration(seconds: 4))..repeat(reverse: true);
     // أنميشن التوهج للخلفية
-    _glowController = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat(reverse: true);
+    _glowController = AnimationController(vsync: this, duration: const Duration(seconds: 5))..repeat(reverse: true);
   }
 
   @override
@@ -43,32 +47,29 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     await FirebaseAuth.instance.signOut();
   }
 
-  // 🪄 دالة الذكاء الاصطناعي السحرية لكتابة البايو
+  // 🪄 دالة الذكاء الاصطناعي السحرية لكتابة البايو (تم التحديث إلى 3.5-flash)
   Future<void> _generateAIBio() async {
     setState(() => _isGeneratingBio = true);
     try {
-      final model = GenerativeModel(model: 'gemini-pro', apiKey: _apiKey);
+      final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: _apiKey);
       
-      // هنا نعطي الذكاء الاصطناعي تعليمات دقيقة ومخصصة
-      final prompt = 'اكتب نبذة شخصية (Bio) قصيرة ومميزة لتطبيق تواصل اجتماعي لشاب اسمه زين العابدين، طالب سادس علمي من بابل، مهتم بالبرمجة وبناء التطبيقات، ومحب للشعر العربي الفصيح. اجعلها سطرين فقط وبطابع إبداعي.';
+      final prompt = 'اكتب نبذة شخصية (Bio) قصيرة ومميزة لتطبيق تواصل اجتماعي لشاب اسمه زين العابدين، طالب سادس علمي، مهتم بالبرمجة وبناء التطبيقات، ومحب للشعر العربي الفصيح. اجعلها سطرين فقط وبطابع فخم، إبداعي، وعميق.';
       
-      final content = [Content.text(prompt)];
-      final response = await model.generateContent(content);
+      final response = await model.generateContent([Content.text(prompt)]);
       
       if (response.text != null && mounted) {
-        // حفظ البايو الجديد في Firestore
         await FirebaseFirestore.instance.collection('users').doc(user?.uid).set({
-          'bio': response.text,
+          'bio': response.text!.replaceAll('"', ''), // تنظيف النص
         }, SetOptions(merge: true));
         
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✨ تم توليد البايو السحري بنجاح!'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('✨ تم توليد البايو السحري بنجاح!'), backgroundColor: Colors.black87),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('حدث خطأ في الذكاء الاصطناعي: $e'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('حدث خطأ في الاتصال بالذكاء الاصطناعي.'), backgroundColor: Colors.red),
         );
       }
     } finally {
@@ -76,15 +77,161 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     }
   }
 
+  // 📸 دالة تغيير الصورة الشخصية
+  Future<void> _changeProfileImage() async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+      
+      if (pickedFile == null) return;
+
+      setState(() => _isUploadingImage = true);
+
+      final file = File(pickedFile.path);
+      final storageRef = FirebaseStorage.instance.ref().child('profile_images/${user!.uid}.jpg');
+      
+      await storageRef.putFile(file);
+      final downloadUrl = await storageRef.getDownloadURL();
+
+      await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
+        'profilePic': downloadUrl,
+      }, SetOptions(merge: true));
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('تم تحديث الصورة الشخصية بنجاح 📸'), backgroundColor: Colors.black87),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('فشل رفع الصورة.'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingImage = false);
+    }
+  }
+
+  // 📝 نافذة تعديل الملف الشخصي مع نظام الـ VIP
+  void _showEditProfileDialog(String currentName, String currentUsername) {
+    final nameController = TextEditingController(text: currentName);
+    final usernameController = TextEditingController(text: currentUsername.replaceAll('@', ''));
+    bool isSaving = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return Dialog(
+            backgroundColor: Colors.transparent,
+            child: GlassContainer(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('تعديل الملف الشخصي', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  
+                  // حقل الاسم
+                  TextField(
+                    controller: nameController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'الاسم الكامل',
+                      labelStyle: const TextStyle(color: Colors.white54),
+                      enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                      focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  
+                  // حقل اليوزرنيم
+                  TextField(
+                    controller: usernameController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'اسم المستخدم (Username)',
+                      prefixText: '@ ',
+                      prefixStyle: const TextStyle(color: Colors.white70),
+                      labelStyle: const TextStyle(color: Colors.white54),
+                      enabledBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
+                      focusedBorder: const UnderlineInputBorder(borderSide: BorderSide(color: Colors.white)),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: isSaving ? null : () => Navigator.pop(context),
+                        child: const Text('إلغاء', style: TextStyle(color: Colors.white54)),
+                      ),
+                      const SizedBox(width: 10),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                        onPressed: isSaving ? null : () async {
+                          final newName = nameController.text.trim();
+                          final newUsername = usernameController.text.trim();
+                          
+                          if (newName.isEmpty || newUsername.isEmpty) return;
+
+                          // 🛡️ نظام حماية اليوزرنيم (VIP Check)
+                          final String? email = user?.email;
+                          final bool isVIP = email == 'sly86055r@gmail.com' || email == 'zainalabdeensalman123@gmail.com';
+                          final int minLength = isVIP ? 2 : 4;
+
+                          if (newUsername.length < minLength) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(isVIP ? 'اليوزر يجب أن يكون حرفين على الأقل للـ VIP.' : 'يجب أن يتكون اسم المستخدم من 4 أحرف على الأقل.'), backgroundColor: Colors.red),
+                            );
+                            return;
+                          }
+
+                          setDialogState(() => isSaving = true);
+                          
+                          try {
+                            await FirebaseFirestore.instance.collection('users').doc(user!.uid).set({
+                              'name': newName,
+                              'username': '@$newUsername',
+                            }, SetOptions(merge: true));
+                            
+                            if (mounted) Navigator.pop(context);
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('حدث خطأ أثناء الحفظ.'), backgroundColor: Colors.red));
+                          } finally {
+                            if (mounted) setDialogState(() => isSaving = false);
+                          }
+                        },
+                        child: isSaving 
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                          : const Text('حفظ التعديلات', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  )
+                ],
+              ),
+            ),
+          );
+        }
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0B19),
+      backgroundColor: const Color(0xFF050508), // ثيم الأوبسيديان الفاخر
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('المَـرصَـد', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1, color: Colors.white)),
+        title: const Text('المِلَف الشَخصي', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1, color: Colors.white)),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_rounded, color: Colors.white70),
@@ -92,18 +239,18 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
               context: context,
               builder: (context) => AlertDialog(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                backgroundColor: const Color(0xFF1A1A2E),
-                title: const Text('مغادرة الفضاء؟', style: TextStyle(color: Colors.white)),
-                content: const Text('هل أنت متأكد أنك تريد تسجيل الخروج والعودة للأرض؟', style: TextStyle(color: Colors.white70)),
+                backgroundColor: const Color(0xFF101015),
+                title: const Text('مغادرة الفضاء؟', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                content: const Text('هل أنت متأكد أنك تريد تسجيل الخروج؟', style: TextStyle(color: Colors.white70)),
                 actions: [
-                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('البقاء', style: TextStyle(color: Colors.grey))),
+                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('البقاء', style: TextStyle(color: Colors.white54))),
                   ElevatedButton(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
                     onPressed: () {
                       Navigator.pop(context);
                       _logout();
                     },
-                    child: const Text('خروج', style: TextStyle(color: Colors.white)),
+                    child: const Text('تسجيل الخروج', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               )
@@ -113,7 +260,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
       ),
       body: Stack(
         children: [
-          // خلفية الفضاء المتوهجة
+          // الخلفية الأحادية الفاخرة
           AnimatedBuilder(
             animation: _glowController,
             builder: (context, child) {
@@ -121,11 +268,11 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
                     colors: [
-                      const Color(0xFF2A1B54).withOpacity(0.5 + (_glowController.value * 0.2)),
-                      const Color(0xFF0B0B19),
+                      Colors.white.withOpacity(0.05 + (_glowController.value * 0.02)),
+                      const Color(0xFF050508),
                     ],
-                    center: const Alignment(0, -0.5),
-                    radius: 1.2,
+                    center: const Alignment(0, -0.4),
+                    radius: 1.5,
                   ),
                 ),
               );
@@ -137,61 +284,66 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
               stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator(color: Color(0xFF0095F6)));
+                  return const Center(child: CircularProgressIndicator(color: Colors.white));
                 }
                 
                 final userData = snapshot.data?.data() as Map<String, dynamic>?;
                 
-                // جلب البيانات من فايربيس أو استخدام بيانات افتراضية
-                final displayName = userData?['name'] ?? 'مستكشف الفضاء';
-                final username = userData?['username'] ?? '@zain_explorer';
+                final displayName = userData?['name'] ?? 'مستكشف';
+                final username = userData?['username'] ?? '@explorer';
                 final bio = userData?['bio'] ?? 'لم تتم كتابة نبذة شخصية بعد...';
-                final postsCount = userData?['posts_count'] ?? '0';
-                final followersCount = userData?['followers_count'] ?? '0';
-                final followingCount = userData?['following_count'] ?? '0';
+                final profilePic = userData?['profilePic'];
+                final postsCount = userData?['posts_count'] ?? 0;
+                final followersCount = userData?['followers_count'] ?? 0;
+                final followingCount = userData?['following_count'] ?? 0;
 
                 return RefreshIndicator(
-                  color: const Color(0xFF0095F6),
-                  backgroundColor: const Color(0xFF1A1A2E),
+                  color: Colors.black,
+                  backgroundColor: Colors.white,
                   onRefresh: () async { setState(() {}); },
                   child: ListView(
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                     children: [
-                      // صورة الحساب مع أنميشن الطفو
+                      // صورة الحساب مع زر التعديل
                       Center(
                         child: AnimatedBuilder(
                           animation: _floatController,
                           builder: (context, child) {
                             return Transform.translate(
-                              offset: Offset(0, 10 * math.sin(_floatController.value * math.pi)),
-                              child: Stack(
-                                alignment: Alignment.bottomRight,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      gradient: const LinearGradient(colors: [Color(0xFF0095F6), Color(0xFFA259FF)]),
-                                      boxShadow: [
-                                        BoxShadow(color: const Color(0xFF0095F6).withOpacity(0.5), blurRadius: 20, spreadRadius: 5)
-                                      ]
-                                    ),
-                                    child: CircleAvatar(
-                                      radius: 55,
-                                      backgroundColor: const Color(0xFF0B0B19),
-                                      child: Text(
-                                        displayName.substring(0, 1).toUpperCase(), 
-                                        style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.white)
+                              offset: Offset(0, 8 * math.sin(_floatController.value * math.pi)),
+                              child: GestureDetector(
+                                onTap: _changeProfileImage,
+                                child: Stack(
+                                  alignment: Alignment.bottomRight,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.white24, width: 2),
+                                        boxShadow: [
+                                          BoxShadow(color: Colors.white.withOpacity(0.1), blurRadius: 20, spreadRadius: 2)
+                                        ]
+                                      ),
+                                      child: CircleAvatar(
+                                        radius: 55,
+                                        backgroundColor: const Color(0xFF101015),
+                                        backgroundImage: profilePic != null ? NetworkImage(profilePic) : null,
+                                        child: profilePic == null 
+                                          ? Text(displayName.substring(0, 1).toUpperCase(), style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.white))
+                                          : null,
                                       ),
                                     ),
-                                  ),
-                                  Container(
-                                    padding: const EdgeInsets.all(8),
-                                    decoration: const BoxDecoration(color: Color(0xFF1A1A2E), shape: BoxShape.circle),
-                                    child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
-                                  ),
-                                ],
+                                    Container(
+                                      padding: const EdgeInsets.all(8),
+                                      decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, border: Border.all(color: Colors.black, width: 2)),
+                                      child: _isUploadingImage 
+                                        ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                                        : const Icon(Icons.camera_alt_rounded, color: Colors.black, size: 16),
+                                    ),
+                                  ],
+                                ),
                               ),
                             );
                           },
@@ -200,13 +352,13 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                       const SizedBox(height: 20),
                       
                       // الاسم واليوزر
-                      Center(child: Text(displayName, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Colors.white))),
+                      Center(child: Text(displayName, style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.white))),
                       const SizedBox(height: 4),
-                      Center(child: Text(username, style: const TextStyle(fontSize: 16, color: Color(0xFF0095F6), letterSpacing: 1))),
+                      Center(child: Text(username, style: const TextStyle(fontSize: 15, color: Colors.white54, letterSpacing: 1))),
                       
                       const SizedBox(height: 25),
                       
-                      // قسم البايو (Bio) مع الذكاء الاصطناعي
+                      // قسم البايو الزجاجي
                       GlassContainer(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,49 +366,54 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text('النبذة الشخصية', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                                const Text('النبذة الشخصية', style: TextStyle(color: Colors.white54, fontSize: 13, fontWeight: FontWeight.bold)),
                                 if (_isGeneratingBio)
-                                  const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFA259FF)))
+                                  const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                                 else
                                   GestureDetector(
                                     onTap: _generateAIBio,
                                     child: const Row(
                                       children: [
-                                        Text('توليد سحري ', style: TextStyle(color: Color(0xFFA259FF), fontSize: 12, fontWeight: FontWeight.bold)),
-                                        Icon(Icons.auto_awesome, color: Color(0xFFA259FF), size: 16),
+                                        Text('صياغة سديم ', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                        Icon(Icons.auto_awesome, color: Colors.white, size: 14),
                                       ],
                                     ),
                                   ),
                               ],
                             ),
-                            const SizedBox(height: 10),
-                            Text(bio, style: const TextStyle(color: Colors.white, fontSize: 16, height: 1.5)),
+                            const SizedBox(height: 12),
+                            Text(bio, style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.6)),
                           ],
                         ),
                       ),
                       
-                      const SizedBox(height: 25),
+                      const SizedBox(height: 20),
                       
-                      // الإحصائيات (المتابعون، المنشورات)
+                      // الإحصائيات الفاخرة
                       GlassContainer(
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            _buildStatCol('منشور', postsCount),
-                            Container(width: 1, height: 40, color: Colors.white24),
-                            _buildStatCol('متابِع', followersCount),
-                            Container(width: 1, height: 40, color: Colors.white24),
-                            _buildStatCol('يتابِع', followingCount),
+                            _buildStatCol('منشور', postsCount.toString()),
+                            Container(width: 1, height: 35, color: Colors.white12),
+                            _buildStatCol('متابِع', followersCount.toString()),
+                            Container(width: 1, height: 35, color: Colors.white12),
+                            _buildStatCol('يتابِع', followingCount.toString()),
                           ],
                         ),
                       ),
                       
                       const SizedBox(height: 35),
                       
-                      // قائمة الخيارات السفلية
-                      _buildMenuTile(Icons.edit_note, 'تعديل الملف الشخصي', () {}),
-                      _buildMenuTile(Icons.bookmark_border, 'العناصر المحفوظة', () {}),
-                      _buildMenuTile(Icons.settings_outlined, 'إعدادات النظام', () {}),
+                      // الأزرار التفاعلية
+                      _buildMenuTile(Icons.edit_note_rounded, 'تعديل الملف الشخصي', () => _showEditProfileDialog(displayName, username)),
+                      _buildMenuTile(Icons.bookmark_border_rounded, 'العناصر المحفوظة', () {
+                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الخزنة فارغة حالياً.'), backgroundColor: Colors.black87));
+                      }),
+                      _buildMenuTile(Icons.settings_outlined, 'إعدادات النظام', () {
+                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الإعدادات قيد التطوير.'), backgroundColor: Colors.black87));
+                      }),
+                      const SizedBox(height: 90), // مساحة لشريط التنقل
                     ],
                   ),
                 );
@@ -271,49 +428,57 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   Widget _buildStatCol(String label, String count) {
     return Column(
       children: [
-        Text(count, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+        Text(count, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white)),
+        const SizedBox(height: 2),
+        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 13)),
       ],
     );
   }
 
   Widget _buildMenuTile(IconData icon, String title, VoidCallback onTap) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.03),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: Colors.white70),
-        title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 16)),
-        trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        onTap: onTap,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          splashColor: Colors.white.withOpacity(0.1),
+          child: Ink(
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.03),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.white.withOpacity(0.05)),
+            ),
+            child: ListTile(
+              leading: Icon(icon, color: Colors.white),
+              title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+              trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white38, size: 16),
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-// ويدجت مخصص لتأثير الزجاج (Glassmorphism)
+// ويدجت الزجاج
 class GlassContainer extends StatelessWidget {
   final Widget child;
-  const GlassContainer({Key? key, required this.child}) : super(key: key);
+  const GlassContainer({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
         child: Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.white.withOpacity(0.03),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withOpacity(0.08)),
           ),
           child: child,
         ),
