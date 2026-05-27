@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:ui';
-import 'dart:math' as math;
 
 class ReelsScreen extends StatelessWidget {
   const ReelsScreen({super.key});
@@ -22,9 +21,8 @@ class ReelsScreen extends StatelessWidget {
       body: PageView.builder(
         scrollDirection: Axis.vertical,
         physics: const BouncingScrollPhysics(),
-        itemCount: 5, // لاحقاً سيتم سحب العدد من قاعدة البيانات
+        itemCount: 5,
         itemBuilder: (context, index) {
-          // كل مقطع ريلز هو ويدجت مستقل ليتعامل مع الفيديو الخاص به
           return ReelVideoItem(index: index);
         },
       ),
@@ -33,7 +31,7 @@ class ReelsScreen extends StatelessWidget {
 }
 
 // ---------------------------------------------------------
-// ويدجت الريلز المستقل (يحتوي على مشغل الفيديو والأنميشن)
+// ويدجت الريلز المستقل 
 // ---------------------------------------------------------
 class ReelVideoItem extends StatefulWidget {
   final int index;
@@ -53,17 +51,8 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
-    // أنميشن الإعجاب عند الضغط المزدوج
     _likeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
     _likeScale = Tween<double>(begin: 0.0, end: 1.5).animate(CurvedAnimation(parent: _likeController, curve: Curves.elasticOut));
-
-    // إعداد مشغل الفيديو (هنا نضع رابط فيديو افتراضي أو نتركه فارغاً مؤقتاً)
-    // _videoController = VideoPlayerController.networkUrl(Uri.parse('رابط_الفيديو_هنا'))
-    //   ..initialize().then((_) {
-    //     setState(() {});
-    //     _videoController!.setLooping(true);
-    //     _videoController!.play();
-    //   });
   }
 
   @override
@@ -93,7 +82,6 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
     });
   }
 
-  // نافذة الذكاء الاصطناعي الخاصة بالريلز
   void _showAIReelDialog() {
     showDialog(
       context: context,
@@ -150,7 +138,6 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // خلفية مؤقتة متدرجة (إلى أن يتم ربط الفيديوهات الحقيقية)
           Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -162,30 +149,18 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
                 ],
               ),
             ),
-            child: _videoController != null && _videoController!.value.isInitialized
-                ? SizedBox.expand(
-                    child: FittedBox(
-                      fit: BoxFit.cover,
-                      child: SizedBox(
-                        width: _videoController!.value.size.width,
-                        height: _videoController!.value.size.height,
-                        child: VideoPlayer(_videoController!),
-                      ),
-                    ),
-                  )
-                : Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.slow_motion_video, size: 80, color: Colors.white.withOpacity(0.2)),
-                        const SizedBox(height: 10),
-                        Text('فيديو ريلز رقم ${widget.index + 1}', style: TextStyle(color: Colors.white.withOpacity(0.5))),
-                      ],
-                    ),
-                  ),
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.slow_motion_video, size: 80, color: Colors.white.withOpacity(0.2)),
+                  const SizedBox(height: 10),
+                  Text('فيديو ريلز رقم ${widget.index + 1}', style: TextStyle(color: Colors.white.withOpacity(0.5))),
+                ],
+              ),
+            ),
           ),
           
-          // تأثير التعتيم السفلي لكي تظهر النصوص بوضوح
           Positioned(
             bottom: 0,
             left: 0,
@@ -202,13 +177,11 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
             ),
           ),
 
-          // أيقونة الإيقاف المؤقت
           if (!_isPlaying)
             const Center(
               child: Icon(Icons.play_arrow_rounded, size: 80, color: Colors.white54),
             ),
 
-          // القلب المتوهج (أنميشن الإعجاب المزدوج)
           Center(
             child: ScaleTransition(
               scale: _likeScale,
@@ -216,10 +189,9 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
             ),
           ),
 
-          // قائمة الأزرار الجانبية (الإعجاب، التعليق، المشاركة، الذكاء الاصطناعي)
           Positioned(
             bottom: 30,
-            left: 16, // في الواجهات العربية (RTL) نضع الأزرار على اليسار
+            left: 16, 
             child: Column(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
@@ -235,7 +207,6 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
                 _buildSideAction(icon: Icons.send_outlined, label: 'مشاركة', onTap: () {}),
                 const SizedBox(height: 20),
                 
-                // زر الذكاء الاصطناعي الخاص بالريلز
                 GestureDetector(
                   onTap: _showAIReelDialog,
                   child: Container(
@@ -252,11 +223,10 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
             ),
           ),
 
-          // معلومات الفيديو السفلية
           Positioned(
             bottom: 30,
             right: 16,
-            left: 80, // ترك مساحة للأزرار الجانبية
+            left: 80, 
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -268,10 +238,10 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
                         shape: BoxShape.circle,
                         gradient: LinearGradient(colors: [Color(0xFF0095F6), Color(0xFFA259FF)]),
                       ),
-                      child: CircleAvatar(
+                      child: const CircleAvatar(
                         radius: 18,
                         backgroundColor: Colors.black,
-                        child: Text('م', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        child: Text('م', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -311,8 +281,8 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
             ),
           ),
         ],
-      );
-    }
+      ),
+    );
   }
 
   // دالة مساعدة لإنشاء الأزرار الجانبية
