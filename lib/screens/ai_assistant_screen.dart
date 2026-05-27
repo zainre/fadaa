@@ -59,17 +59,17 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
     final lowerText = text.toLowerCase();
     if (lowerText.contains('ملف') || lowerText.contains('حسابي') || lowerText.contains('بروفايل')) {
       Future.delayed(const Duration(milliseconds: 800), () {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم: جاري الانتقال إلى سجل الملف الشخصي... 📂'), backgroundColor: Colors.white, behavior: SnackBarBehavior.floating, textStyle: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم: جاري الانتقال إلى سجل الملف الشخصي... 📂', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)), backgroundColor: Colors.white, behavior: SnackBarBehavior.floating));
       });
       return true;
     } else if (lowerText.contains('ريلز') || lowerText.contains('فيديو')) {
       Future.delayed(const Duration(milliseconds: 800), () {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم: جاري فتح دفق الفيديوهات القصيرة... 🎬'), backgroundColor: Colors.white, behavior: SnackBarBehavior.floating, textStyle: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم: جاري فتح دفق الفيديوهات القصيرة... 🎬', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)), backgroundColor: Colors.white, behavior: SnackBarBehavior.floating));
       });
       return true;
     } else if (lowerText.contains('رسائل') || lowerText.contains('محادثات') || lowerText.contains('شات')) {
       Future.delayed(const Duration(milliseconds: 800), () {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم: جاري تفعيل بوابات المراسلة الفورية... 💬'), backgroundColor: Colors.white, behavior: SnackBarBehavior.floating, textStyle: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)));
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم: جاري تفعيل بوابات المراسلة الفورية... 💬', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)), backgroundColor: Colors.white, behavior: SnackBarBehavior.floating));
       });
       return true;
     }
@@ -222,7 +222,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
       ),
       body: Stack(
         children: [
-          // الخلفية الفضائية الأحادية الفاخرة (Black & White Fluid Background)
+          // الخلفية الفضائية الأحادية الفاخرة
           AnimatedBuilder(
             animation: _bgController,
             builder: (context, child) {
@@ -316,7 +316,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
                   ),
                 ),
                 
-                // لوحة إدخال الرسائل الزجاجية الأنيقة (Black & White Glass Input)
+                // لوحة إدخال الرسائل الزجاجية الأنيقة
                 ClipRRect(
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
@@ -333,7 +333,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
                             IconButton(
                               icon: const Icon(Icons.mic_none_rounded, color: Colors.white70, size: 26),
                               onPressed: () {
-                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الاستماع الصوتي قيد المزامنة العصبية حالياً... 🎤'), backgroundColor: Colors.white, textStyle: TextStyle(color: Colors.black)));
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('الاستماع الصوتي قيد المزامنة العصبية حالياً... 🎤', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)), backgroundColor: Colors.white));
                               },
                             ),
                             Expanded(
