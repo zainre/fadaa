@@ -26,16 +26,24 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with TickerProviderStat
   late AnimationController _bgController;
   bool _isGeneratingAI = false;
 
-  // مفتاح Gemini الخاص بك
-  final String _apiKey = 'AIzaSyDN6c9X9txXrD7OaIgYrzIY1d_sk_zZmdI';
+  // حفظ مؤشر المفتاح الحالي
+  int _currentKeyIndex = 0;
+
+  // مفاتيح سديم الأربعة لضمان استمرارية الخدمة
+  final List<String> _apiKeys = [
+    'AIzaSyCzHgKi4LjOdMkY1ngembMvtfsvmIr9RBE',
+    'AIzaSyDK9g15HqwCUY-pXcneTMgpV_35Y7sXQVA',
+    'AIzaSyDN6c9X9txXrD7OaIgYrzIY1d_sk_zZmdI',
+    'AIzaSyBOrfXgIPJztDb0J1xWMS3DrgrjRFKgopM',
+  ];
 
   @override
   void initState() {
     super.initState();
-    // أنميشن الخلفية الفضائية
+    // أنميشن الخلفية الأحادية الفاخرة
     _bgController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 20),
+      duration: const Duration(seconds: 25),
     )..repeat(reverse: true);
   }
 
@@ -72,78 +80,104 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with TickerProviderStat
     });
   }
 
-  // 🪄 دالة الذكاء الاصطناعي لتحسين الرسائل أو اقتراح رد
+  // 🪄 دالة سديم لتحسين الرسائل (مع نظام حماية المفاتيح)
   Future<void> _smartReplyAI() async {
     setState(() => _isGeneratingAI = true);
-    try {
-      final model = GenerativeModel(model: 'gemini-pro', apiKey: _apiKey);
-      String prompt;
-      
-      if (_msgController.text.trim().isEmpty) {
-        prompt = 'اكتب رسالة ترحيبية قصيرة ولطيفة جداً باللغة العربية الفصحى لبدء محادثة مع صديق.';
-      } else {
-        prompt = 'قم بتحسين وصياغة هذه الرسالة لتصبح أكثر لباقة واحترافية باللغة العربية: ${_msgController.text}';
-      }
-      
-      final response = await model.generateContent([Content.text(prompt)]);
-      
-      if (response.text != null && mounted) {
-        setState(() {
-          _msgController.text = response.text!.replaceAll('"', ''); // إزالة علامات التنصيص إن وُجدت
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('خطأ في الذكاء الاصطناعي: $e'), backgroundColor: Colors.red));
-      }
-    } finally {
-      if (mounted) setState(() => _isGeneratingAI = false);
+    bool success = false;
+    int attempts = 0;
+
+    String prompt;
+    if (_msgController.text.trim().isEmpty) {
+      prompt = 'اكتب رسالة ترحيبية قصيرة ولطيفة جداً باللغة العربية الفصحى لبدء محادثة مع صديق.';
+    } else {
+      prompt = 'قم بتحسين وصياغة هذه الرسالة لتصبح أكثر لباقة واحترافية باللغة العربية: ${_msgController.text}';
     }
+
+    while (!success && attempts < _apiKeys.length) {
+      try {
+        final currentKey = _apiKeys[_currentKeyIndex];
+        final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: currentKey);
+        
+        final response = await model.generateContent([Content.text(prompt)]);
+        
+        if (response.text != null && mounted) {
+          setState(() {
+            _msgController.text = response.text!.replaceAll('"', '');
+          });
+          success = true;
+        }
+      } catch (e) {
+        attempts++;
+        _currentKeyIndex = (_currentKeyIndex + 1) % _apiKeys.length; // الانتقال للمفتاح التالي
+      }
+    }
+
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم يواجه تشويشاً حالياً، حاول مرة أخرى.'), backgroundColor: Colors.red));
+    }
+    
+    if (mounted) setState(() => _isGeneratingAI = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0B19),
+      backgroundColor: const Color(0xFF050508), // ثيم الأوبسيديان العميق
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        backgroundColor: Colors.black.withOpacity(0.4),
+        backgroundColor: Colors.transparent,
         flexibleSpace: ClipRRect(
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: Container(color: Colors.transparent),
+            filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+            child: Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF050508).withOpacity(0.6),
+                border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.05))),
+              ),
+            ),
           ),
         ),
         elevation: 0,
-        leading: IconButton(icon: const Icon(Icons.arrow_back_ios, color: Colors.white), onPressed: () => Navigator.pop(context)),
+        leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20), onPressed: () => Navigator.pop(context)),
         title: Row(
           children: [
             Container(
-              decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: const Color(0xFFA259FF), width: 1.5)),
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle, 
+                border: Border.all(color: Colors.white24, width: 1.5)
+              ),
               child: CircleAvatar(
-                radius: 18, 
-                backgroundColor: Colors.blueAccent.withOpacity(0.6),
-                child: Text(widget.receiverName.substring(0, 1), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                radius: 16, 
+                backgroundColor: const Color(0xFF101015),
+                child: Text(
+                  widget.receiverName.substring(0, 1).toUpperCase(), 
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
+                ),
               ),
             ),
             const SizedBox(width: 12),
-            Text(widget.receiverName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text(widget.receiverName, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 0.5)),
           ],
         ),
         titleSpacing: 0,
       ),
       body: Stack(
         children: [
-          // الخلفية المتحركة
+          // الخلفية المتحركة الفاخرة
           AnimatedBuilder(
             animation: _bgController,
             builder: (context, child) {
               return Container(
                 decoration: BoxDecoration(
                   gradient: RadialGradient(
-                    colors: [const Color(0xFF2A1B54).withOpacity(0.4), const Color(0xFF0B0B19)],
-                    center: Alignment(math.sin(_bgController.value * math.pi), math.cos(_bgController.value * math.pi)),
-                    radius: 1.5,
+                    colors: [
+                      Colors.white.withOpacity(0.04),
+                      const Color(0xFF0A0A0E),
+                      const Color(0xFF030305),
+                    ],
+                    center: Alignment(math.sin(_bgController.value * math.pi) * 0.5, math.cos(_bgController.value * math.pi) * 0.5),
+                    radius: 1.6,
                   ),
                 ),
               );
@@ -163,10 +197,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with TickerProviderStat
                         .snapshots(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator(color: Color(0xFFA259FF)));
+                        return const Center(child: CircularProgressIndicator(color: Colors.white));
                       }
                       if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                        return const Center(child: Text('الفضاء هادئ هنا... ابدأ المحادثة الآن 🚀', style: TextStyle(color: Colors.white54, fontSize: 16)));
+                        return const Center(child: Text('الفضاء هادئ هنا... ابدأ المحادثة الآن 🚀', style: TextStyle(color: Colors.white54, fontSize: 15)));
                       }
 
                       final messages = snapshot.data!.docs;
@@ -177,36 +211,54 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with TickerProviderStat
                         itemCount: messages.length,
                         itemBuilder: (context, index) {
                           final isMe = messages[index]['senderId'] == currentUserId;
-                          return Align(
-                            alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
-                            child: Container(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
-                              decoration: BoxDecoration(
-                                gradient: isMe ? const LinearGradient(colors: [Color(0xFF0095F6), Color(0xFFA259FF)]) : null,
-                                color: isMe ? null : Colors.white.withOpacity(0.1),
-                                borderRadius: BorderRadius.only(
-                                  topLeft: const Radius.circular(20),
-                                  topRight: const Radius.circular(20),
-                                  bottomLeft: Radius.circular(isMe ? 0 : 20),
-                                  bottomRight: Radius.circular(isMe ? 20 : 0),
-                                ),
-                                border: isMe ? null : Border.all(color: Colors.white.withOpacity(0.1)),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.only(
-                                  topLeft: const Radius.circular(20),
-                                  topRight: const Radius.circular(20),
-                                  bottomLeft: Radius.circular(isMe ? 0 : 20),
-                                  bottomRight: Radius.circular(isMe ? 20 : 0),
-                                ),
-                                child: BackdropFilter(
-                                  filter: isMe ? ImageFilter.blur(sigmaX: 0, sigmaY: 0) : ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                    child: Text(
-                                      messages[index]['text'],
-                                      style: const TextStyle(color: Colors.white, fontSize: 15, height: 1.4),
+                          
+                          // أنميشن خفيف لظهور الرسالة
+                          return TweenAnimationBuilder<double>(
+                            tween: Tween<double>(begin: 0.0, end: 1.0),
+                            duration: const Duration(milliseconds: 300),
+                            curve: Curves.easeOutCubic,
+                            builder: (context, value, child) {
+                              return Transform.translate(
+                                offset: Offset(0, 20 * (1 - value)),
+                                child: Opacity(opacity: value, child: child),
+                              );
+                            },
+                            child: Align(
+                              alignment: isMe ? Alignment.centerLeft : Alignment.centerRight,
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.78),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.only(
+                                    topLeft: const Radius.circular(20),
+                                    topRight: const Radius.circular(20),
+                                    bottomLeft: Radius.circular(isMe ? 0 : 20),
+                                    bottomRight: Radius.circular(isMe ? 20 : 0),
+                                  ),
+                                  child: BackdropFilter(
+                                    filter: isMe ? ImageFilter.blur(sigmaX: 0, sigmaY: 0) : ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: isMe ? Colors.white : Colors.white.withOpacity(0.06),
+                                        borderRadius: BorderRadius.only(
+                                          topLeft: const Radius.circular(20),
+                                          topRight: const Radius.circular(20),
+                                          bottomLeft: Radius.circular(isMe ? 0 : 20),
+                                          bottomRight: Radius.circular(isMe ? 20 : 0),
+                                        ),
+                                        border: isMe ? null : Border.all(color: Colors.white.withOpacity(0.1)),
+                                        boxShadow: isMe ? [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))] : [],
+                                      ),
+                                      child: Text(
+                                        messages[index]['text'],
+                                        style: TextStyle(
+                                          color: isMe ? Colors.black : Colors.white, 
+                                          fontSize: 15, 
+                                          height: 1.4,
+                                          fontWeight: isMe ? FontWeight.w600 : FontWeight.normal
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -219,49 +271,49 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with TickerProviderStat
                   ),
                 ),
                 
-                // منطقة كتابة الرسالة الزجاجية
+                // منطقة إدخال الرسالة الزجاجية (Obsidian Input)
                 ClipRRect(
                   child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
-                        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
+                        color: const Color(0xFF050508).withOpacity(0.7),
+                        border: Border(top: BorderSide(color: Colors.white.withOpacity(0.08))),
                       ),
                       child: Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.add_circle_outline, color: Colors.white70, size: 28),
+                            icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white54, size: 28),
                             onPressed: () {},
                           ),
                           Expanded(
                             child: Container(
                               decoration: BoxDecoration(
-                                color: Colors.black.withOpacity(0.3),
+                                color: Colors.white.withOpacity(0.03),
                                 borderRadius: BorderRadius.circular(25),
-                                border: Border.all(color: Colors.white.withOpacity(0.1)),
+                                border: Border.all(color: Colors.white.withOpacity(0.08)),
                               ),
                               child: Row(
                                 children: [
                                   Expanded(
                                     child: TextField(
                                       controller: _msgController,
-                                      style: const TextStyle(color: Colors.white),
+                                      style: const TextStyle(color: Colors.white, fontSize: 15),
                                       maxLines: null,
                                       decoration: InputDecoration(
-                                        hintText: 'اكتب رسالتك في الفضاء...',
-                                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.4)),
+                                        hintText: 'اكتب رسالتك...',
+                                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.3), fontWeight: FontWeight.w300),
                                         border: InputBorder.none,
                                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                       ),
                                     ),
                                   ),
-                                  // زر الذكاء الاصطناعي السحري للرسائل
+                                  // زر سديم لتحسين الرسائل
                                   IconButton(
                                     icon: _isGeneratingAI 
-                                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Color(0xFFA259FF), strokeWidth: 2))
-                                      : const Icon(Icons.auto_awesome, color: Color(0xFFA259FF)),
+                                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                      : const Icon(Icons.auto_awesome, color: Colors.white70, size: 20),
                                     onPressed: _isGeneratingAI ? null : _smartReplyAI,
                                   ),
                                 ],
@@ -275,9 +327,9 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with TickerProviderStat
                               padding: const EdgeInsets.all(12),
                               decoration: const BoxDecoration(
                                 shape: BoxShape.circle,
-                                gradient: LinearGradient(colors: [Color(0xFF0095F6), Color(0xFFA259FF)]),
+                                color: Colors.white,
                               ),
-                              child: const Icon(Icons.send_rounded, color: Colors.white, size: 22),
+                              child: const Icon(Icons.send_rounded, color: Colors.black, size: 22),
                             ),
                           ),
                         ],
