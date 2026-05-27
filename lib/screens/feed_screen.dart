@@ -8,6 +8,7 @@ import 'dart:ui';
 import 'dart:math' as math;
 
 import 'create_post_screen.dart';
+import 'api_keys.dart'; // 👈 استدعاء ملف المفاتيح المركزي
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -121,13 +122,11 @@ class _FeedScreenState extends State<FeedScreen> with TickerProviderStateMixin {
                             
                             String name = 'قصتك';
                             String profilePic = '';
-                            bool hasStory = false;
 
                             if (!isMe && stories.isNotEmpty) {
                               final data = stories[index - 1].data() as Map<String, dynamic>;
                               name = data['displayName']?.split(' ')[0] ?? 'مستكشف';
                               profilePic = data['profilePic'] ?? '';
-                              hasStory = true;
                             }
 
                             return Padding(
@@ -255,9 +254,6 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
   bool _isLiked = false;
   final currentUser = FirebaseAuth.instance.currentUser;
 
-  // مفتاح Gemini لسديم
-  final String _apiKey = 'AIzaSyDN6c9X9txXrD7OaIgYrzIY1d_sk_zZmdI';
-
   @override
   void initState() {
     super.initState();
@@ -305,7 +301,7 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
     );
   }
 
-  // ✨ نافذة سديم المخصصة للمنشورات
+  // ✨ نافذة سديم المخصصة للمنشورات (تقرأ من المركز)
   void _showAIPostDialog(String caption) {
     showDialog(
       context: context,
@@ -340,7 +336,8 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم يفكر... ✨'), backgroundColor: Colors.black87));
           try {
-            final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: _apiKey);
+            // 🛡️ استخدام المفتاح من الملف المركزي
+            final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: ApiKeys.geminiKeys.first);
             final response = await model.generateContent([Content.text('المستخدم يطلب: $label. بناءً على هذا المنشور: "$caption". أجب باختصار وإبداع.')]);
             if (response.text != null && mounted) {
                showDialog(
@@ -410,7 +407,7 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
                   alignment: Alignment.center,
                   children: [
                     CachedNetworkImage(
-                      imageUrl: data['imageUrl'],
+                      imageUrl: data['mediaUrl'] ?? data['imageUrl'] ?? '', // دعم الاسم القديم والجديد للرابط
                       width: double.infinity,
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Container(
@@ -441,7 +438,7 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
                 IconButton(icon: Icon(_isLiked ? Icons.favorite : Icons.favorite_border_rounded, color: _isLiked ? Colors.white : Colors.white), onPressed: _triggerLike),
                 IconButton(icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.white), onPressed: _showCommentsBottomSheet),
                 IconButton(icon: const Icon(Icons.send_rounded, color: Colors.white), onPressed: () {}),
-                IconButton(icon: const Icon(Icons.auto_awesome, color: Colors.white70, size: 20), tooltip: 'تحليل سديم', onPressed: () => _showAIPostDialog(data['caption'])),
+                IconButton(icon: const Icon(Icons.auto_awesome, color: Colors.white70, size: 20), tooltip: 'تحليل سديم', onPressed: () => _showAIPostDialog(data['caption'] ?? '')),
                 const Spacer(),
                 IconButton(icon: const Icon(Icons.bookmark_border_rounded, color: Colors.white), onPressed: () {}),
               ],
@@ -461,7 +458,7 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
                   style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.4, fontFamily: 'sans-serif'),
                   children: [
                     TextSpan(text: '${data['username']} ', style: const TextStyle(fontWeight: FontWeight.w900)),
-                    TextSpan(text: data['caption']),
+                    TextSpan(text: data['caption'] ?? ''),
                   ],
                 ),
               ),
