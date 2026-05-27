@@ -5,6 +5,8 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'dart:ui';
 import 'dart:math' as math;
 
+import 'api_keys.dart'; // 👈 استدعاء ملف المفاتيح المركزي
+
 class ChatRoomScreen extends StatefulWidget {
   final String receiverId;
   final String receiverName;
@@ -28,14 +30,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with TickerProviderStat
 
   // حفظ مؤشر المفتاح الحالي
   int _currentKeyIndex = 0;
-
-  // مفاتيح سديم الأربعة لضمان استمرارية الخدمة
-  final List<String> _apiKeys = [
-    'AIzaSyCzHgKi4LjOdMkY1ngembMvtfsvmIr9RBE',
-    'AIzaSyDK9g15HqwCUY-pXcneTMgpV_35Y7sXQVA',
-    'AIzaSyDN6c9X9txXrD7OaIgYrzIY1d_sk_zZmdI',
-    'AIzaSyBOrfXgIPJztDb0J1xWMS3DrgrjRFKgopM',
-  ];
 
   @override
   void initState() {
@@ -80,7 +74,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with TickerProviderStat
     });
   }
 
-  // 🪄 دالة سديم لتحسين الرسائل (مع نظام حماية المفاتيح)
+  // 🪄 دالة سديم لتحسين الرسائل (مربوطة بالمركز)
   Future<void> _smartReplyAI() async {
     setState(() => _isGeneratingAI = true);
     bool success = false;
@@ -93,9 +87,10 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with TickerProviderStat
       prompt = 'قم بتحسين وصياغة هذه الرسالة لتصبح أكثر لباقة واحترافية باللغة العربية: ${_msgController.text}';
     }
 
-    while (!success && attempts < _apiKeys.length) {
+    // 🛡️ القراءة من الملف المركزي
+    while (!success && attempts < ApiKeys.geminiKeys.length) {
       try {
-        final currentKey = _apiKeys[_currentKeyIndex];
+        final currentKey = ApiKeys.geminiKeys[_currentKeyIndex];
         final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: currentKey);
         
         final response = await model.generateContent([Content.text(prompt)]);
@@ -108,7 +103,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with TickerProviderStat
         }
       } catch (e) {
         attempts++;
-        _currentKeyIndex = (_currentKeyIndex + 1) % _apiKeys.length; // الانتقال للمفتاح التالي
+        _currentKeyIndex = (_currentKeyIndex + 1) % ApiKeys.geminiKeys.length; // الانتقال للمفتاح التالي
       }
     }
 
@@ -220,7 +215,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> with TickerProviderStat
                             builder: (context, value, child) {
                               return Transform.translate(
                                 offset: Offset(0, 20 * (1 - value)),
-                                child: Opacity(opacity: value, child: child),
+                                child: Opacity(opacity: value.clamp(0.0, 1.0), child: child), // تمت إضافة الـ clamp كحماية إضافية للأنميشن
                               );
                             },
                             child: Align(
