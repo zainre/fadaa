@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'dart:math' as math; // أضفنا هذا من أجل حسابات الدوران
 
 // استدعاء جميع شاشات تطبيق فضاء
 import 'feed_screen.dart';
@@ -17,9 +18,12 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+// ⚠️ تغيير مهم: استخدمنا TickerProviderStateMixin بدلاً من Single لدعم أكثر من أنميشن
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
-  late AnimationController _fabController;
+  
+  late AnimationController _pulseController;
+  late AnimationController _rotationController;
 
   // القائمة النهائية للشاشات
   final List<Widget> _screens = [
@@ -32,16 +36,24 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    // أنميشن نبض فاخر لزر الذكاء الاصطناعي (سديم)
-    _fabController = AnimationController(
+    
+    // 1. أنميشن النبض (يكبر ويصغر ويتوهج)
+    _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
+
+    // 2. أنميشن الدوران المستمر (حلقة الضوء الفاخرة حول سديم)
+    _rotationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 4),
+    )..repeat();
   }
 
   @override
   void dispose() {
-    _fabController.dispose();
+    _pulseController.dispose();
+    _rotationController.dispose();
     super.dispose();
   }
 
@@ -57,37 +69,69 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       ),
 
       // -----------------------------------------------------
-      // الزر العائم المركزي (سَديم) - يطفو وينبض بلمسة بلاتينية
+      // الزر العائم المركزي (سَديم) - أنميشن الثقب الأسود المتوهج
       // -----------------------------------------------------
       floatingActionButton: AnimatedBuilder(
-        animation: _fabController,
+        animation: Listenable.merge([_pulseController, _rotationController]),
         builder: (context, child) {
-          return Container(
-            height: 60,
-            width: 60,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.white.withOpacity(0.3 * _fabController.value),
-                  blurRadius: 20 * _fabController.value,
-                  spreadRadius: 5 * _fabController.value,
-                )
-              ],
-              gradient: const LinearGradient(
-                colors: [Colors.white, Color(0xFFE0E0E0)], // تدرج أبيض/فضي
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          return GestureDetector(
+            onTap: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const AIAssistantScreen()));
+            },
+            child: Container(
+              height: 65,
+              width: 65,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.3 * _pulseController.value),
+                    blurRadius: 25 * _pulseController.value,
+                    spreadRadius: 8 * _pulseController.value,
+                  )
+                ],
               ),
-            ),
-            child: FloatingActionButton(
-              onPressed: () {
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const AIAssistantScreen()));
-              },
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              tooltip: 'المُرشِد سديم',
-              child: const Icon(Icons.auto_awesome, color: Colors.black, size: 28),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // 1. حلقة الضوء الدوارة (Sweep Gradient)
+                  Transform.rotate(
+                    angle: _rotationController.value * 2 * math.pi,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: SweepGradient(
+                          colors: [
+                            Colors.transparent,
+                            Colors.white.withOpacity(0.1),
+                            Colors.white,
+                            Colors.white.withOpacity(0.1),
+                            Colors.transparent,
+                          ],
+                          stops: const [0.0, 0.4, 0.5, 0.6, 1.0],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // 2. النواة الداكنة (لإعطاء تأثير الحلقة المجوفة)
+                  Container(
+                    margin: const EdgeInsets.all(2.5), // سُمك الحلقة الضوئية
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Color(0xFF050508), // لون الأوبسيديان ليتماشى مع الخلفية
+                    ),
+                  ),
+                  // 3. أيقونة سديم النابضة التي تكبر وتصغر
+                  Icon(
+                    Icons.auto_awesome, 
+                    color: Colors.white, 
+                    size: 26 + (4 * _pulseController.value), // تكبر وتصغر برقة
+                    shadows: [
+                      Shadow(color: Colors.white, blurRadius: 10 * _pulseController.value)
+                    ],
+                  ),
+                ],
+              ),
             ),
           );
         }
