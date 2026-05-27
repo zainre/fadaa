@@ -200,7 +200,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   builder: (context, double value, child) {
                     return Transform.translate(
                       offset: Offset(0, 40 * (1 - value)), 
-                      child: Opacity(opacity: value, child: child)
+                      // 🛡️ تمت إضافة الحماية هنا لضمان عدم انهيار الشاشة أبداً
+                      child: Opacity(opacity: value.clamp(0.0, 1.0), child: child)
                     );
                   },
                   child: Column(
@@ -267,7 +268,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       GlassTextField(controller: _passwordController, hintText: "كلمة المرور", icon: Icons.lock_outline_rounded, isPassword: true),
                       const SizedBox(height: 35),
                       
-                      // زر الدخول/الإنشاء (Premium White Button)
+                      // زر الدخول/الإنشاء
                       AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         width: double.infinity,
@@ -309,7 +310,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                       ),
                       const SizedBox(height: 25),
 
-                      // زر جوجل
+                      // زر جوجل (سيعمل إذا قمت بحل مشكلة SHA-1 في الفايربيس، وإذا لم تعمل يمكنك الاعتماد على الإيميل والباسورد فقط)
                       SizedBox(
                         width: double.infinity,
                         height: 55,
