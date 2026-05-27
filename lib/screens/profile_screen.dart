@@ -23,7 +23,7 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
   bool _isGeneratingBio = false;
   bool _isUploadingImage = false;
 
-  final String _apiKey = 'AIzaSyDN6c9X9txXrD7OaIgYrzIY1d_sk_zZmdI';
+  final String _apiKey = 'AIzaSyD86oeJ6ZNQHkjzIyYAaOZ1oiUZR4G-h-Q';
 
   // مفاتيح Supabase
   final String _supabaseUrl = 'https://qkphtbweyeubtyxudscb.supabase.co';
