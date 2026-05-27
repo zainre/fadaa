@@ -8,6 +8,8 @@ import 'package:video_player/video_player.dart';
 import 'dart:ui';
 import 'dart:math' as math;
 
+import 'api_keys.dart'; // 👈 استدعاء ملف المفاتيح المركزي
+
 enum UploadType { post, reel, story }
 
 class CreatePostScreen extends StatefulWidget {
@@ -28,21 +30,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
   bool _isGeneratingAI = false;
 
   late AnimationController _bgController;
-
-  // ==========================================
-  // مفاتيح Supabase الخاصة بك (تم دمجها برمجياً)
-  // ==========================================
-  final String _supabaseUrl = 'https://qkphtbweyeubtyxudscb.supabase.co';
-  final String _supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFrcGh0YndleWV1YnR5eHVkc2NiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4OTA3OTMsImV4cCI6MjA5NTQ2Njc5M30.s1XrUlPQNkbWPBoCt_a7wRNspfv40CVcD0f5dOGtWDg'; 
-  final String _bucketName = 'media'; 
-  // ==========================================
-
-  final List<String> _apiKeys = [
-    'AIzaSyCub9KcJtGTZdZ-PAC6rheWOmAw0EZORxc',
-    'AIzaSyD86oeJ6ZNQHkjzIyYAaOZ1oiUZR4G-h-Q',
-    'AIzaSyA2swL6nANoba5HC8VZ_iKzH5ElfNOKrZU',
-    'AIzaSyD6QamLUA9y3ugUH2tl8H6eYBmwo9-wtBU',
-  ];
 
   @override
   void initState() {
@@ -100,9 +87,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
 
     final prompt = 'أنت سديم، المساعد الذكي لتطبيق "فضاء". قم بصياغة وتحسين هذا النص ليصبح وصفاً احترافياً وجذاباً لمنشور، استخدم لغة عربية فصيحة راقية، وأضف هاشتاجات مناسبة. النص هو: ${_captionController.text}';
 
-    while (!success && attempts < _apiKeys.length) {
+    // 🛡️ استخدام المفاتيح من الملف المركزي
+    while (!success && attempts < ApiKeys.geminiKeys.length) {
       try {
-        final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: _apiKeys[currentKeyIndex]);
+        final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: ApiKeys.geminiKeys[currentKeyIndex]);
         final response = await model.generateContent([Content.text(prompt)]);
         
         if (response.text != null && mounted) {
@@ -113,7 +101,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
         }
       } catch (e) {
         attempts++;
-        currentKeyIndex = (currentKeyIndex + 1) % _apiKeys.length;
+        currentKeyIndex = (currentKeyIndex + 1) % ApiKeys.geminiKeys.length;
       }
     }
 
@@ -151,12 +139,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
       final fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}$fileExt';
       final mimeType = _isVideo ? 'video/mp4' : 'image/jpeg';
       
-      // رفع الملف إلى Supabase
-      final uploadUrl = Uri.parse('$_supabaseUrl/storage/v1/object/$_bucketName/$collectionName/$fileName');
+      // 🛡️ رفع الملف إلى Supabase باستخدام المفاتيح المركزية
+      final uploadUrl = Uri.parse('${ApiKeys.supabaseUrl}/storage/v1/object/${ApiKeys.bucketName}/$collectionName/$fileName');
       final request = await HttpClient().postUrl(uploadUrl);
       
-      request.headers.set('Authorization', 'Bearer $_supabaseAnonKey');
-      request.headers.set('apikey', _supabaseAnonKey);
+      request.headers.set('Authorization', 'Bearer ${ApiKeys.supabaseAnonKey}');
+      request.headers.set('apikey', ApiKeys.supabaseAnonKey);
       request.headers.set('Content-Type', mimeType);
       
       final fileBytes = await _mediaFile!.readAsBytes();
@@ -169,7 +157,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
       }
 
       // الحصول على الرابط
-      final mediaUrl = '$_supabaseUrl/storage/v1/object/public/$_bucketName/$collectionName/$fileName';
+      final mediaUrl = '${ApiKeys.supabaseUrl}/storage/v1/object/public/${ApiKeys.bucketName}/$collectionName/$fileName';
 
       // الحفظ في قاعدة بياناتك (Firebase)
       await FirebaseFirestore.instance.collection(collectionName).add({
