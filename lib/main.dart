@@ -11,10 +11,17 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    // 🛡️ التعديل الذكي: تم إزالة الإعدادات اليدوية
-    // الآن سيقوم التطبيق بقراءة ملف google-services.json المحدث تلقائياً
-    // مما يضمن عمل "تسجيل الدخول بجوجل" بعد إضافة بصمات SHA-1
-    await Firebase.initializeApp();
+    // 🚀 عدنا للطريقة اليدوية لأنها الأنسب لبرمجة الجوال وتغنيك عن ملف google-services
+    await Firebase.initializeApp(
+      options: const FirebaseOptions(
+        apiKey: "AIzaSyC1Ao53gJgrlw3DwoRoq0xK9Wq1-dPB8uc",
+        appId: "1:611756083257:android:9f48cc6b3aad31d29865e8",
+        messagingSenderId: "611756083257",
+        projectId: "gen-lang-client-0777727516",
+        storageBucket: "gen-lang-client-0777727516.firebasestorage.app", 
+        authDomain: "gen-lang-client-0777727516.firebaseapp.com",
+      ),
+    );
   } catch (e) {
     debugPrint("خطأ في تهيئة فايربيس: $e");
   }
@@ -32,7 +39,6 @@ class FadaaApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        // تم توحيد اللون هنا ليكون مطابقاً للثيم الفاخر في كل التطبيق
         scaffoldBackgroundColor: const Color(0xFF050508), 
         primaryColor: Colors.white,
         fontFamily: 'sans-serif', 
@@ -55,11 +61,7 @@ class FadaaApp extends StatelessWidget {
               )
             );
           }
-          
-          if (snapshot.hasData) {
-            return const HomeScreen(); 
-          }
-          
+          if (snapshot.hasData) return const HomeScreen(); 
           return const LoginScreen(); 
         },
       ),
