@@ -4,12 +4,12 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:video_player/video_player.dart';
 import 'dart:ui';
 import 'dart:math' as math;
 
 import 'create_post_screen.dart';
 import 'api_keys.dart'; // 👈 استدعاء ملف المفاتيح المركزي
-import 'story_view_screen.dart'; // 👈 استدعاء شاشة عرض القصص الجديدة
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -59,7 +59,6 @@ class _FeedScreenState extends State<FeedScreen> with TickerProviderStateMixin {
         ),
         elevation: 0,
         title: const Text('المَـرصَـد', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1, color: Colors.white)),
-        // تم إزالة الأيقونات العلوية بناءً على طلبك لتنظيف الواجهة
       ),
       
       floatingActionButton: FloatingActionButton(
@@ -135,7 +134,6 @@ class _FeedScreenState extends State<FeedScreen> with TickerProviderStateMixin {
                               child: Column(
                                 children: [
                                   GestureDetector(
-                                    // 🚀 تم ربط فتح القصص بالشاشة الجديدة هنا
                                     onTap: isMe 
                                       ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreatePostScreen()))
                                       : () {
@@ -212,7 +210,6 @@ class _FeedScreenState extends State<FeedScreen> with TickerProviderStateMixin {
                     return SliverList(
                       delegate: SliverChildBuilderDelegate(
                         (context, index) {
-                          // أنميشن دخول متدرج للمنشورات
                           return TweenAnimationBuilder<double>(
                             tween: Tween<double>(begin: 0.0, end: 1.0),
                             duration: Duration(milliseconds: 400 + (index * 100).clamp(0, 500)),
@@ -232,7 +229,6 @@ class _FeedScreenState extends State<FeedScreen> with TickerProviderStateMixin {
                   },
                 ),
                 
-                // مسافة سفلية لشريط التنقل
                 const SliverToBoxAdapter(child: SizedBox(height: 100)),
               ],
             ),
@@ -307,7 +303,6 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
     );
   }
 
-  // ✨ نافذة سديم المخصصة للمنشورات (تقرأ من المركز)
   void _showAIPostDialog(String caption) {
     showDialog(
       context: context,
@@ -333,7 +328,6 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
     );
   }
 
-  // 🛡️ زر سديم محمي ومزود بخاصية الدوران الذكي للمفاتيح
   Widget _buildAIActionBtn(IconData icon, String label, String caption) {
     return SizedBox(
       width: double.infinity,
@@ -400,7 +394,6 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ترويسة المنشور
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               leading: Container(
@@ -417,8 +410,6 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
               subtitle: Text(timeString, style: const TextStyle(fontSize: 12, color: Colors.white54)),
               trailing: IconButton(icon: const Icon(Icons.more_horiz, color: Colors.white54), onPressed: () {}),
             ),
-            
-            // صورة المنشور
             GestureDetector(
               onDoubleTap: _triggerLike,
               child: ClipRRect(
@@ -427,7 +418,7 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
                   alignment: Alignment.center,
                   children: [
                     CachedNetworkImage(
-                      imageUrl: data['mediaUrl'] ?? data['imageUrl'] ?? '', // دعم الاسم القديم والجديد للرابط
+                      imageUrl: data['mediaUrl'] ?? data['imageUrl'] ?? '',
                       width: double.infinity,
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Container(
@@ -449,10 +440,7 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
                 ),
               ),
             ),
-            
             const SizedBox(height: 5),
-            
-            // أزرار التفاعل
             Row(
               children: [
                 IconButton(icon: Icon(_isLiked ? Icons.favorite : Icons.favorite_border_rounded, color: _isLiked ? Colors.white : Colors.white), onPressed: _triggerLike),
@@ -463,14 +451,10 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
                 IconButton(icon: const Icon(Icons.bookmark_border_rounded, color: Colors.white), onPressed: () {}),
               ],
             ),
-            
-            // الإعجابات
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12.0),
               child: Text('${data['likesCount']} إعجاب', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 13)),
             ),
-            
-            // الوصف
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
               child: RichText(
@@ -483,8 +467,6 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
                 ),
               ),
             ),
-            
-            // التعليقات
             if (commentsCount > 0)
               GestureDetector(
                 onTap: _showCommentsBottomSheet,
@@ -501,9 +483,6 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
   }
 }
 
-// ---------------------------------------------------------
-// ويدجت التعليقات الزجاجي
-// ---------------------------------------------------------
 class GlassCommentsSheet extends StatefulWidget {
   final String postId;
   const GlassCommentsSheet({super.key, required this.postId});
@@ -603,6 +582,171 @@ class _GlassCommentsSheetState extends State<GlassCommentsSheet> {
           ),
         );
       },
+    );
+  }
+}
+
+// ---------------------------------------------------------
+// شاشة عرض القصص (مدمجة هنا لتجنب خطأ الملف المفقود)
+// ---------------------------------------------------------
+class StoryViewScreen extends StatefulWidget {
+  final Map<String, dynamic> storyData;
+
+  const StoryViewScreen({super.key, required this.storyData});
+
+  @override
+  State<StoryViewScreen> createState() => _StoryViewScreenState();
+}
+
+class _StoryViewScreenState extends State<StoryViewScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _progressController;
+  VideoPlayerController? _videoController;
+  bool _isVideo = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _isVideo = widget.storyData['isVideo'] ?? false;
+    final mediaUrl = widget.storyData['mediaUrl'] ?? '';
+
+    _progressController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5), 
+    );
+
+    if (_isVideo && mediaUrl.isNotEmpty) {
+      _videoController = VideoPlayerController.networkUrl(Uri.parse(mediaUrl))
+        ..initialize().then((_) {
+          setState(() {
+            _progressController.duration = _videoController!.value.duration;
+          });
+          _videoController!.play();
+          _progressController.forward();
+        });
+    } else {
+      _progressController.forward();
+    }
+
+    _progressController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        Navigator.pop(context);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _progressController.dispose();
+    _videoController?.dispose();
+    super.dispose();
+  }
+
+  void _handleTapDown(TapDownDetails details) {
+    _progressController.stop();
+    _videoController?.pause();
+  }
+
+  void _handleTapUp(TapUpDetails details) {
+    _progressController.forward();
+    _videoController?.play();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mediaUrl = widget.storyData['mediaUrl'] ?? '';
+    final displayName = widget.storyData['displayName'] ?? 'مستكشف';
+    final profilePic = widget.storyData['profilePic'] ?? '';
+    final caption = widget.storyData['caption'] ?? '';
+
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: GestureDetector(
+        onTapDown: _handleTapDown,
+        onTapUp: _handleTapUp,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (_isVideo && _videoController != null)
+              _videoController!.value.isInitialized
+                  ? FittedBox(
+                      fit: BoxFit.cover,
+                      child: SizedBox(
+                        width: _videoController!.value.size.width,
+                        height: _videoController!.value.size.height,
+                        child: VideoPlayer(_videoController!),
+                      ),
+                    )
+                  : const Center(child: CircularProgressIndicator(color: Colors.white))
+            else if (!_isVideo)
+              CachedNetworkImage(
+                imageUrl: mediaUrl,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => const Center(child: CircularProgressIndicator(color: Colors.white)),
+                errorWidget: (context, url, error) => const Center(child: Icon(Icons.error, color: Colors.white)),
+              ),
+
+            Positioned(
+              top: 0, left: 0, right: 0, height: 120,
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Colors.black.withOpacity(0.8), Colors.transparent],
+                  )
+                ),
+              ),
+            ),
+
+            Positioned(
+              top: 50, left: 10, right: 10,
+              child: AnimatedBuilder(
+                animation: _progressController,
+                builder: (context, child) {
+                  return LinearProgressIndicator(
+                    value: _progressController.value,
+                    backgroundColor: Colors.white38,
+                    valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                    minHeight: 2.5,
+                    borderRadius: BorderRadius.circular(10),
+                  );
+                }
+              ),
+            ),
+
+            Positioned(
+              top: 65, left: 15, right: 15,
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: Colors.white24,
+                    backgroundImage: profilePic.isNotEmpty ? NetworkImage(profilePic) : null,
+                    child: profilePic.isEmpty ? const Icon(Icons.person, color: Colors.white) : null,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(displayName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                    onPressed: () => Navigator.pop(context),
+                  )
+                ],
+              ),
+            ),
+
+            if (caption.isNotEmpty)
+              Positioned(
+                bottom: 40, left: 20, right: 20,
+                child: Text(
+                  caption,
+                  style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, shadows: [Shadow(color: Colors.black, blurRadius: 10)]),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
