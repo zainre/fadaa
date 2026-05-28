@@ -95,16 +95,19 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
     bool success = false;
     int attempts = 0;
 
-    // محاولة الإرسال مع التبديل التلقائي بين المفاتيح المقروءة من الملف المركزي
+    // 🛡️ الحلقة الذكية لتجربة المفاتيح واحدًا تلو الآخر
     while (!success && attempts < ApiKeys.geminiKeys.length) {
       try {
         final currentKey = ApiKeys.geminiKeys[_currentKeyIndex];
         
         final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: currentKey);
         
-        setState(() {
-          _messages.add({'sender': 'ai', 'text': isCommand ? 'تم استلام الأمر أيها القائد. جاري التهيئة والتنفيذ.\n\n' : ''});
-        });
+        // إضافة رسالة الذكاء الاصطناعي فارغة للبدء بالكتابة الحية
+        if (attempts == 0) { 
+            setState(() {
+              _messages.add({'sender': 'ai', 'text': isCommand ? 'تم استلام الأمر أيها القائد. جاري التهيئة والتنفيذ.\n\n' : ''});
+            });
+        }
         
         final aiMsgIndex = _messages.length - 1;
         // تفعيل خاصية البث المباشر (الكتابة الحية كلمة بكلمة)
@@ -123,17 +126,19 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> with TickerProvid
         
       } catch (e) {
         attempts++;
-        // إزالة الرسالة الفارغة الفاشلة لإعادة المحاولة بنظافة
-        if (_messages.isNotEmpty && _messages.last['text'] == '') {
-          _messages.removeLast();
+        // إزالة الرسالة الفارغة الفاشلة لإعادة المحاولة بنظافة (فقط إذا فشلنا كلياً)
+        if (attempts >= ApiKeys.geminiKeys.length) {
+             if (_messages.isNotEmpty && _messages.last['sender'] == 'ai') {
+                 _messages.removeLast();
+             }
         }
         
-        // التحويل إلى المفتاح التالي تلقائياً في المصفوفة الدائرية
+        // الانتقال للمفتاح التالي
         _currentKeyIndex = (_currentKeyIndex + 1) % ApiKeys.geminiKeys.length;
         
         if (attempts >= ApiKeys.geminiKeys.length && mounted) {
           setState(() {
-            _messages.add({'sender': 'ai', 'text': 'عذراً أيها القائد، جميع قنوات الاتصال العصبية ممتلئة بالتشويش حالياً. أعد المحاولة لاحقاً.'});
+            _messages.add({'sender': 'ai', 'text': 'عذراً أيها القائد، جميع قنوات الاتصال العصبية ممتلئة بالتشويش حالياً. يبدو أن كل المفاتيح قد استنفدت حصتها. أعد المحاولة لاحقاً.'});
           });
           _scrollToBottom();
         }
