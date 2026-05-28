@@ -159,7 +159,7 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
     );
   }
 
-  // ✨ نافذة سديم المخصصة للريلز (تقرأ من المركز)
+  // 🛡️ نافذة سديم المخصصة للريلز (مزودة بحلقة الدوران الذكية)
   void _showAIReelDialog(String caption) {
     showDialog(
       context: context,
@@ -197,23 +197,36 @@ class _ReelVideoItemState extends State<ReelVideoItem> with SingleTickerProvider
         onPressed: () async {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم يفكر... ✨'), backgroundColor: Colors.black87));
-          try {
-            // 🛡️ استخدام المفتاح من الملف المركزي
-            final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: ApiKeys.geminiKeys.first);
-            final response = await model.generateContent([Content.text('المستخدم يطلب: $label. بناءً على هذا الوصف للمقطع: "$caption". أجب باختصار وإبداع.')]);
-            if (response.text != null && mounted) {
-               showDialog(
-                 context: context,
-                 builder: (context) => AlertDialog(
-                   backgroundColor: const Color(0xFF101015),
-                   title: const Text('رد سديم', style: TextStyle(color: Colors.white)),
-                   content: Text(response.text!, style: const TextStyle(color: Colors.white70)),
-                   actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسناً', style: TextStyle(color: Colors.white)))],
-                 )
-               );
+          
+          bool success = false;
+          int attempts = 0;
+          int currentKeyIndex = 0;
+
+          while (!success && attempts < ApiKeys.geminiKeys.length) {
+            try {
+              final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: ApiKeys.geminiKeys[currentKeyIndex]);
+              final response = await model.generateContent([Content.text('المستخدم يطلب: $label. بناءً على هذا الوصف للمقطع: "$caption". أجب باختصار وإبداع.')]);
+              
+              if (response.text != null && mounted) {
+                 showDialog(
+                   context: context,
+                   builder: (context) => AlertDialog(
+                     backgroundColor: const Color(0xFF101015),
+                     title: const Text('رد سديم', style: TextStyle(color: Colors.white)),
+                     content: Text(response.text!, style: const TextStyle(color: Colors.white70)),
+                     actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسناً', style: TextStyle(color: Colors.white)))],
+                   )
+                 );
+                 success = true;
+              }
+            } catch (e) {
+              attempts++;
+              currentKeyIndex = (currentKeyIndex + 1) % ApiKeys.geminiKeys.length;
             }
-          } catch (e) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('حدث خطأ في الاتصال بسديم.'), backgroundColor: Colors.red));
+          }
+
+          if (!success && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم يواجه تشويشاً حالياً، حاول مرة أخرى.'), backgroundColor: Colors.red));
           }
         },
         icon: Icon(icon, color: Colors.white70, size: 20),
