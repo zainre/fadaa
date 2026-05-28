@@ -43,27 +43,39 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
     await FirebaseAuth.instance.signOut();
   }
 
+  // 🛡️ دالة توليد البايو مع حماية "الدوران الذكي" للمفاتيح
   Future<void> _generateAIBio() async {
     setState(() => _isGeneratingBio = true);
-    try {
-      // قراءة مفتاح سديم من الملف المركزي
-      final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: ApiKeys.geminiKeys.first);
-      final prompt = 'اكتب نبذة شخصية (Bio) قصيرة ومميزة لتطبيق تواصل اجتماعي لشاب اسمه زين العابدين، طالب سادس علمي، مهتم بالبرمجة وبناء التطبيقات، ومحب للشعر العربي الفصيح. اجعلها سطرين فقط وبطابع فخم، إبداعي، وعميق.';
-      
-      final response = await model.generateContent([Content.text(prompt)]);
-      
-      if (response.text != null && mounted) {
-        await FirebaseFirestore.instance.collection('users').doc(user?.uid).set({
-          'bio': response.text!.replaceAll('"', ''), 
-        }, SetOptions(merge: true));
+    bool success = false;
+    int attempts = 0;
+    int currentKeyIndex = 0;
+
+    final prompt = 'اكتب نبذة شخصية (Bio) قصيرة ومميزة لتطبيق تواصل اجتماعي لشاب اسمه زين العابدين، طالب سادس علمي، مهتم بالبرمجة وبناء التطبيقات، ومحب للشعر العربي الفصيح. اجعلها سطرين فقط وبطابع فخم، إبداعي، وعميق.';
+
+    while (!success && attempts < ApiKeys.geminiKeys.length) {
+      try {
+        final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: ApiKeys.geminiKeys[currentKeyIndex]);
+        final response = await model.generateContent([Content.text(prompt)]);
         
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✨ تم توليد البايو السحري بنجاح!'), backgroundColor: Colors.black87));
+        if (response.text != null && mounted) {
+          await FirebaseFirestore.instance.collection('users').doc(user?.uid).set({
+            'bio': response.text!.replaceAll('"', ''), 
+          }, SetOptions(merge: true));
+          
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✨ تم توليد البايو السحري بنجاح!'), backgroundColor: Colors.black87));
+          success = true;
+        }
+      } catch (e) {
+        attempts++;
+        currentKeyIndex = (currentKeyIndex + 1) % ApiKeys.geminiKeys.length; // جرب المفتاح التالي
       }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('حدث خطأ في الاتصال بالذكاء الاصطناعي.'), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => _isGeneratingBio = false);
     }
+
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('حدث خطأ في الاتصال بالذكاء الاصطناعي.'), backgroundColor: Colors.red));
+    }
+    
+    if (mounted) setState(() => _isGeneratingBio = false);
   }
 
   // 📸 دالة رفع الصورة الشخصية (مربوطة بالمركز)
@@ -463,36 +475,4 @@ class _ProfileScreenState extends State<ProfileScreen> with TickerProviderStateM
             ),
             child: ListTile(
               leading: Icon(icon, color: Colors.white),
-              title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-              trailing: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white38, size: 16),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class GlassContainer extends StatelessWidget {
-  final Widget child;
-  const GlassContainer({super.key, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.03),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.08)),
-          ),
-          child: child,
-        ),
-      ),
-    );
-  }
-}
+              title: Text(title, style: const TextStyle(
