@@ -1,10 +1,10 @@
 class ApiKeys {
   // مفاتيح سديم الأربعة (الذكاء الاصطناعي)
   static const List<String> geminiKeys = [
-    'AIzaSyD86oeJ6ZNQHkjzIyYAaOZ1oiUZR4G-h-Q',
+    'AIzaSyCjuHXJUWqnl-7NbXwVn_YureFY86iAAv4',
     'AIzaSyD6QamLUA9y3ugUH2tl8H6eYBmwo9-wtBU',
-    'AIzaSyA2swL6nANoba5HC8VZ_iKzH5ElfNOKrZU',
-    'AIzaSyCub9KcJtGTZdZ-PAC6rheWOmAw0EZORxc',
+    'AIzaSyADJjonDTz6XVGE6-VO0sW2cRwHZjHTtJQ',
+    'AIzaSyDgP4eSfYzNQpo9w6aWHY2BU0vc7MFeGkc',
   ];
 
   // مفاتيح Supabase (لرفع الوسائط)
