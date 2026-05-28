@@ -87,7 +87,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
 
     final prompt = 'أنت سديم، المساعد الذكي لتطبيق "فضاء". قم بصياغة وتحسين هذا النص ليصبح وصفاً احترافياً وجذاباً لمنشور، استخدم لغة عربية فصيحة راقية، وأضف هاشتاجات مناسبة. النص هو: ${_captionController.text}';
 
-    // 🛡️ استخدام المفاتيح من الملف المركزي
+    // 🛡️ استخدام المفاتيح من الملف المركزي مع حلقة الدوران الذكية
     while (!success && attempts < ApiKeys.geminiKeys.length) {
       try {
         final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: ApiKeys.geminiKeys[currentKeyIndex]);
@@ -111,7 +111,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
     if (mounted) setState(() => _isGeneratingAI = false);
   }
 
-  // 🚀 دالة الرفع لـ Supabase المدمجة مع Firestore
+  // 🚀 دالة الرفع المعدلة: تحل مشكلة "التعليق" وتغلق الشاشة فوراً بعد النشر
   Future<void> _uploadMedia() async {
     if (_mediaFile == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('يجب اختيار ملف وسائط أولاً!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), backgroundColor: Colors.red));
@@ -119,6 +119,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
     }
 
     setState(() => _isLoading = true);
+    bool isSuccess = false; // متغير نتأكد من خلاله أن الرفع نجح
+
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw 'المستخدم غير مسجل الدخول';
@@ -139,7 +141,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
       final fileName = '${user.uid}_${DateTime.now().millisecondsSinceEpoch}$fileExt';
       final mimeType = _isVideo ? 'video/mp4' : 'image/jpeg';
       
-      // 🛡️ رفع الملف إلى Supabase باستخدام المفاتيح المركزية
+      // رفع الملف إلى Supabase
       final uploadUrl = Uri.parse('${ApiKeys.supabaseUrl}/storage/v1/object/${ApiKeys.bucketName}/$collectionName/$fileName');
       final request = await HttpClient().postUrl(uploadUrl);
       
@@ -173,22 +175,32 @@ class _CreatePostScreenState extends State<CreatePostScreen> with TickerProvider
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      if (_selectedType != UploadType.story) {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-          'posts_count': FieldValue.increment(1),
-        });
-      }
+      isSuccess = true; // تم الحفظ بنجاح في قاعدة البيانات الأساسية!
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🚀 تم الإطلاق بنجاح!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), backgroundColor: Colors.green));
-      Navigator.pop(context);
+      // محاولة تحديث عداد المنشورات (نضعه في Try/Catch منفصل لكي لا يوقف العملية إذا فشل)
+      if (_selectedType != UploadType.story) {
+        try {
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+            'posts_count': FieldValue.increment(1),
+          });
+        } catch (e) {
+          debugPrint('تحذير: لم يتم تحديث العداد: $e');
+        }
+      }
 
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('حدث خطأ أثناء الرفع: $e', style: const TextStyle(color: Colors.white)), backgroundColor: Colors.red));
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+        // إغلاق الشاشة إذا نجح النشر
+        if (isSuccess) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('🚀 تم الإطلاق بنجاح!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)), backgroundColor: Colors.green));
+          Navigator.pop(context); 
+        }
+      }
     }
   }
 
