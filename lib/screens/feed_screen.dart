@@ -9,6 +9,7 @@ import 'dart:math' as math;
 
 import 'create_post_screen.dart';
 import 'api_keys.dart'; // 👈 استدعاء ملف المفاتيح المركزي
+import 'story_view_screen.dart'; // 👈 استدعاء شاشة عرض القصص الجديدة
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -134,10 +135,15 @@ class _FeedScreenState extends State<FeedScreen> with TickerProviderStateMixin {
                               child: Column(
                                 children: [
                                   GestureDetector(
+                                    // 🚀 تم ربط فتح القصص بالشاشة الجديدة هنا
                                     onTap: isMe 
                                       ? () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CreatePostScreen()))
                                       : () {
-                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('عرض القصص قيد التطوير'), backgroundColor: Colors.black87));
+                                          final storyData = stories[index - 1].data() as Map<String, dynamic>;
+                                          Navigator.push(
+                                            context, 
+                                            MaterialPageRoute(builder: (_) => StoryViewScreen(storyData: storyData))
+                                          );
                                         },
                                     child: Stack(
                                       alignment: Alignment.bottomRight,
@@ -327,6 +333,7 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
     );
   }
 
+  // 🛡️ زر سديم محمي ومزود بخاصية الدوران الذكي للمفاتيح
   Widget _buildAIActionBtn(IconData icon, String label, String caption) {
     return SizedBox(
       width: double.infinity,
@@ -335,23 +342,36 @@ class _PostWidgetState extends State<PostWidget> with SingleTickerProviderStateM
         onPressed: () async {
           Navigator.pop(context);
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم يفكر... ✨'), backgroundColor: Colors.black87));
-          try {
-            // 🛡️ استخدام المفتاح من الملف المركزي
-            final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: ApiKeys.geminiKeys.first);
-            final response = await model.generateContent([Content.text('المستخدم يطلب: $label. بناءً على هذا المنشور: "$caption". أجب باختصار وإبداع.')]);
-            if (response.text != null && mounted) {
-               showDialog(
-                 context: context,
-                 builder: (context) => AlertDialog(
-                   backgroundColor: const Color(0xFF101015),
-                   title: const Text('رد سديم', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                   content: Text(response.text!, style: const TextStyle(color: Colors.white70, height: 1.5)),
-                   actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسناً', style: TextStyle(color: Colors.white)))],
-                 )
-               );
+          
+          bool success = false;
+          int attempts = 0;
+          int currentKeyIndex = 0;
+
+          while (!success && attempts < ApiKeys.geminiKeys.length) {
+            try {
+              final model = GenerativeModel(model: 'gemini-3.5-flash', apiKey: ApiKeys.geminiKeys[currentKeyIndex]);
+              final response = await model.generateContent([Content.text('المستخدم يطلب: $label. بناءً على هذا المنشور: "$caption". أجب باختصار وإبداع.')]);
+              
+              if (response.text != null && mounted) {
+                 showDialog(
+                   context: context,
+                   builder: (context) => AlertDialog(
+                     backgroundColor: const Color(0xFF101015),
+                     title: const Text('رد سديم', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                     content: Text(response.text!, style: const TextStyle(color: Colors.white70, height: 1.5)),
+                     actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('حسناً', style: TextStyle(color: Colors.white)))],
+                   )
+                 );
+                 success = true;
+              }
+            } catch (e) {
+              attempts++;
+              currentKeyIndex = (currentKeyIndex + 1) % ApiKeys.geminiKeys.length;
             }
-          } catch (e) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('حدث خطأ في الاتصال بسديم.'), backgroundColor: Colors.red));
+          }
+
+          if (!success && mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('سديم يواجه تشويشاً الآن، حاول لاحقاً.'), backgroundColor: Colors.red));
           }
         },
         icon: Icon(icon, color: Colors.white70, size: 20),
